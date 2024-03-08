@@ -58,7 +58,8 @@ class AnalyticGradShafranovSolution:
     def calculate_coefficients(self):
         raise NotImplementedError()
 
-    def homogeneous_polynomials(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials(x, y):
         ''' x = r / Rmaj, y = z / Rmaj '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -72,7 +73,8 @@ class AnalyticGradShafranovSolution:
         p7 = (-15*x4 + 180*y2*x2 - 120*y4)*x2*ln_x + (75*x4 - 140*x2*y2 + 8*y4)*y2
 
         return p1, p2, p3, p4, p5, p6, p7
-    def homogeneous_polynomials_dx(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials_dx(x, y):
         ''' x = r / Rmaj, y = z / Rmaj '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -86,7 +88,8 @@ class AnalyticGradShafranovSolution:
         dp7_dx = -5*x*((18*x4 - 144*x2*y2 + 48*y4)*ln_x + 3*x4 - 96*x2*y2+80*y4)
 
         return dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx
-    def homogeneous_polynomials_dy(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials_dy(x, y):
         ''' x = r / Rmaj, y = z / Rmaj '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -100,7 +103,8 @@ class AnalyticGradShafranovSolution:
         dp7_dy = y * (48*y4 - (480*ln_x + 560)*x2*y2 + (360*ln_x + 150)*x4)
 
         return dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy
-    def homogeneous_polynomials_dx2(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials_dx2(x, y):
         ''' x = r / Rmaj, y = z / Rmaj '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -114,7 +118,8 @@ class AnalyticGradShafranovSolution:
         d2p7_dx2 = (-450*x4 + 2160*x2*y2 - 240*y4)*ln_x - 165*x4 + 2160*x2*y2 - 640*y4
 
         return d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2
-    def homogeneous_polynomials_dy2(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials_dy2(x, y):
         ''' x = r / Rmaj, y = z / Rmaj '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -124,7 +129,7 @@ class AnalyticGradShafranovSolution:
         d2p3_dy2 = 2
         d2p4_dy2 = -8*x2
         d2p5_dy2 = 24*y2 - x2 * (18 + 24*ln_x)
-        d2p6_dy2 = x2 * (-24*x + 98*y2)
+        d2p6_dy2 = x2 * (-24*x2 + 96*y2)
         d2p7_dy2 = 240*y4 - (1440*ln_x + 1680)*x2*y2 + (360*ln_x + 150)*x4
 
         return d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2
@@ -327,12 +332,13 @@ class DoubleNull(AnalyticGradShafranovSolution):
         return x, y
 
 class SingleNull(AnalyticGradShafranovSolution):
-    def homogeneous_polynomials(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials(x, y):
         ''' x = r / Rmaj, y = z / Rmaj '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4 = x2**2
 
-        p1, p2, p3, p4, p5, p6, p7 = AnalyticGradShafranovSolution.homogeneous_polynomials(self, x, y)
+        p1, p2, p3, p4, p5, p6, p7 = AnalyticGradShafranovSolution.homogeneous_polynomials(x, y)
         p8 = y
         p9 = y*x2
         p10 = y * (y2 - 3*x2*ln_x)
@@ -340,10 +346,11 @@ class SingleNull(AnalyticGradShafranovSolution):
         p12 = y * ((8*y2 - 80*x2*ln_x)*y2 + (60*ln_x - 45)*x4)
 
         return p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12
-    def homogeneous_polynomials_dx(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials_dx(x, y):
         x2, y2, ln_x = x**2, y**2, np.log(x)
 
-        dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx = AnalyticGradShafranovSolution.homogeneous_polynomials_dx(self, x, y)
+        dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx = AnalyticGradShafranovSolution.homogeneous_polynomials_dx(x, y)
         dp8_dx = 0
         dp9_dx = 2*x*y
         dp10_dx = -3*x*y*(2*ln_x + 1)
@@ -351,10 +358,11 @@ class SingleNull(AnalyticGradShafranovSolution):
         dp12_dx = 40*x*y*((6*x2 - 4*y2)*ln_x - 3*x2 - 2*y2)
 
         return dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx, dp8_dx, dp9_dx, dp10_dx, dp11_dx, dp12_dx
-    def homogeneous_polynomials_dx2(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials_dx2(x, y):
         x2, y2, ln_x = x**2, y**2, np.log(x)
 
-        d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2 = AnalyticGradShafranovSolution.homogeneous_polynomials_dx2(self, x, y)
+        d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2 = AnalyticGradShafranovSolution.homogeneous_polynomials_dx2(x, y)
         d2p8_dx2 = 0
         d2p9_dx2 = 2*y
         d2p10_dx2 = -3*y*(2*ln_x + 3)
@@ -362,11 +370,12 @@ class SingleNull(AnalyticGradShafranovSolution):
         d2p12_dx2 = y*((720*x2 - 160*y2)*ln_x - 120*x2-240*y2)
 
         return d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2, d2p8_dx2, d2p9_dx2, d2p10_dx2, d2p11_dx2, d2p12_dx2
-    def homogeneous_polynomials_dy(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials_dy(x, y):
         x2, y2, ln_x = x**2, y**2, np.log(x)
         y4 = y2**2
 
-        dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy = AnalyticGradShafranovSolution.homogeneous_polynomials_dy(self, x, y)
+        dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy = AnalyticGradShafranovSolution.homogeneous_polynomials_dy(x, y)
         dp8_dy = 1
         dp9_dy = x2
         dp10_dy = 3*(y2 - x2*ln_x)
@@ -374,10 +383,11 @@ class SingleNull(AnalyticGradShafranovSolution):
         dp12_dy = 40*y4 + 15*x2*((-16*y2 + 4*x2)*ln_x - 3*x2)
 
         return dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy, dp8_dy, dp9_dy, dp10_dy, dp11_dy, dp12_dy
-    def homogeneous_polynomials_dy2(self, x, y):
+    @staticmethod
+    def homogeneous_polynomials_dy2(x, y):
         x2, y2, ln_x = x**2, y**2, np.log(x)
 
-        d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2 = AnalyticGradShafranovSolution.homogeneous_polynomials_dy2(self, x, y)
+        d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2 = AnalyticGradShafranovSolution.homogeneous_polynomials_dy2(x, y)
         d2p8_dy2 = 0
         d2p9_dy2 = 0
         d2p10_dy2 = 6*y
@@ -397,8 +407,8 @@ class SingleNull(AnalyticGradShafranovSolution):
         # Points to fit D shaped model at.
         x_eq_inner, y_eq_inner = 1 - e, 0
         x_eq_outer, y_eq_outer = 1 + e, 0
-        x_high, y_high = 1 - d*e, k*e
-        x_sep, y_sep = 1 - 1.1*d*e, -1.1*k*e
+        x_high, y_high = 1 - d*e, -k*e
+        x_sep, y_sep = 1 - 1.1*d*e, 1.1*k*e
 
         # We solve the system y = Mx to find the coefficient vector x.
         M = np.zeros((12, 12))
