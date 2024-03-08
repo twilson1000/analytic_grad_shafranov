@@ -14,7 +14,7 @@ def readme():
         return f.read()
 
 setup(
-    name="my_first_ray_tracer",
+    name="analytic_grad_shafranov",
     version=__version__,
     description="Python implementation of analytic Grad Shafranov solutions",
     long_description=readme(),
