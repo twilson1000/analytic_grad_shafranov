@@ -31,9 +31,9 @@ def finite_difference_second_derivative(func: Callable, x: float, h: float=1e-4)
     )
 )
 def test_polynomial_first_derivatives_in_x(x, y):
-    dp_dx_finite_difference = finite_difference_first_derivative(lambda x: np.array(SingleNull.homogeneous_polynomials(x, y)), x)
+    dp_dx_finite_difference = finite_difference_first_derivative(lambda x: np.array(SingleNull.psi_homogenous(x, y)), x)
     
-    assert np.allclose(dp_dx_finite_difference, SingleNull.homogeneous_polynomials_dx(x, y))
+    assert np.allclose(dp_dx_finite_difference, SingleNull.psi_homogenous_dx(x, y))
 
 @pytest.mark.parametrize(
     'x, y',
@@ -44,9 +44,9 @@ def test_polynomial_first_derivatives_in_x(x, y):
     )
 )
 def test_polynomial_first_derivatives_in_y(x, y):
-    dp_dx_finite_difference = finite_difference_first_derivative(lambda y: np.array(SingleNull.homogeneous_polynomials(x, y)), y)
+    dp_dx_finite_difference = finite_difference_first_derivative(lambda y: np.array(SingleNull.psi_homogenous(x, y)), y)
     
-    assert np.allclose(dp_dx_finite_difference, SingleNull.homogeneous_polynomials_dy(x, y))
+    assert np.allclose(dp_dx_finite_difference, SingleNull.psi_homogenous_dy(x, y))
 
 @pytest.mark.parametrize(
     'x, y',
@@ -57,9 +57,9 @@ def test_polynomial_first_derivatives_in_y(x, y):
     )
 )
 def test_polynomial_second_derivatives_in_x(x, y):
-    dp_dx_finite_difference = finite_difference_second_derivative(lambda x: np.array(SingleNull.homogeneous_polynomials(x, y)), x)
+    dp_dx_finite_difference = finite_difference_second_derivative(lambda x: np.array(SingleNull.psi_homogenous(x, y)), x)
     
-    assert np.allclose(dp_dx_finite_difference, SingleNull.homogeneous_polynomials_dx2(x, y))
+    assert np.allclose(dp_dx_finite_difference, SingleNull.psi_homogenous_dx2(x, y))
 
 @pytest.mark.parametrize(
     'x, y',
@@ -70,6 +70,6 @@ def test_polynomial_second_derivatives_in_x(x, y):
     )
 )
 def test_polynomial_second_derivatives_in_y(x, y):
-    dp_dx_finite_difference = finite_difference_second_derivative(lambda y: np.array(SingleNull.homogeneous_polynomials(x, y)), y)
+    dp_dx_finite_difference = finite_difference_second_derivative(lambda y: np.array(SingleNull.psi_homogenous(x, y)), y)
     
-    assert np.isclose(dp_dx_finite_difference, SingleNull.homogeneous_polynomials_dy2(x, y))
+    assert np.isclose(dp_dx_finite_difference, SingleNull.psi_homogenous_dy2(x, y))
