@@ -95,11 +95,10 @@ class AnalyticGradShafranovSolution(abc.ABC):
         pass
 
     @staticmethod
-    def psi_homogenous(x, y) -> Tuple[float]:
+    def psi_homogenous(x: float, y: float) -> Tuple[float]:
         '''
-        7 homogenous solutions of the normalised Grad-Shafranov equation expanded up to order x^6 and y^6.
-        x = R / R0 and y = Z / R0 are the radius R and height Z normalised to the major radius R0. All solutions
-        are even in y.
+        7 homogenous solutions of the normalised Grad-Shafranov equation expanded up to order x^6 and y^6 which are
+        even in y. x = R / R0 and y = Z / R0 are the radius R and height Z normalised to the major radius R0.
         '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -114,7 +113,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         return p1, p2, p3, p4, p5, p6, p7
     @staticmethod
-    def psi_homogenous_dx(x, y) -> Tuple[float]:
+    def psi_homogenous_dx(x: float, y: float) -> Tuple[float]:
         ''' First derivative of the homogeneous polynomials with respect to x. '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -129,7 +128,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         return dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx
     @staticmethod
-    def psi_homogenous_dy(x, y) -> Tuple[float]:
+    def psi_homogenous_dy(x: float, y: float) -> Tuple[float]:
         ''' First derivative of the homogeneous polynomials with respect to y. '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -144,7 +143,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         return dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy
     @staticmethod
-    def psi_homogenous_dx2(x, y) -> Tuple[float]:
+    def psi_homogenous_dx2(x: float, y: float) -> Tuple[float]:
         ''' Second derivative of the homogeneous polynomials with respect to x. '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -159,7 +158,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         return d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2
     @staticmethod
-    def psi_homogenous_dy2(x, y) -> Tuple[float]:
+    def psi_homogenous_dy2(x: float, y: float) -> Tuple[float]:
         ''' Second derivative of the homogeneous polynomials with respect to x. '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4, y4 = x2**2, y2**2
@@ -173,7 +172,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         d2p7_dy2 = 240*y4 - (1440*ln_x + 1680)*x2*y2 + (360*ln_x + 150)*x4
 
         return d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2
-    def psi_particular(self, x, y) -> float:
+    def psi_particular(self, x: float, y: float) -> float:
         ''' 
         Particular solution of the normalised Grad-Shafranov equation. x = R / R0 and y = Z / R0 are
         the radius R and height Z normalised to the major radius R0.
@@ -182,17 +181,17 @@ class AnalyticGradShafranovSolution(abc.ABC):
         x2, ln_x = x**2, np.log(x)
         x4 = x2**2
         return 0.5 * A * x2 * ln_x - (x4 / 8) * (1 + A)
-    def psi_particular_dx(self, x, y) -> float:
+    def psi_particular_dx(self, x: float, y: float) -> float:
         ''' First derivative of the particular solution with respect to x. '''
         A = self.pressure_parameter
         x2, ln_x = x**2, np.log(x)
         return 0.5 * x * (A*(2*ln_x + 1) - x2*(1 + A))
-    def psi_particular_dx2(self, x, y) -> float:
+    def psi_particular_dx2(self, x: float, y: float) -> float:
         ''' Second derivative of the particular solution with respect to x. '''
         x2, ln_x = x**2, np.log(x)
         A = self.pressure_parameter
         return A * (1.5 + ln_x) - 1.5 * (1 + A) * x2
-    def psi_bar(self, x, y) -> float:
+    def psi_bar(self, x: float, y: float) -> float:
         '''
         Poloidal flux function normalised to psi0. This is NOT the commonly encountered psi normalised psiN!
         psi_bar is zero at the separatrix and some positive value at the magnetic axis.
@@ -204,7 +203,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
             psi += c * p
 
         return psi
-    def psi(self, R, Z) -> float:
+    def psi(self, R: float, Z: float) -> float:
         ''' Poloidal flux function [Wb]. '''
         return self.psi_0 * self.psi_bar(R / self.major_radius_m, Z / self.major_radius_m)
     
@@ -271,7 +270,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         mask = psi_bar < 0
 
         # This is proportional to the total plasma current.
-        Ip_integrand = (1 + A) * x_grid - (A / x_grid)
+        Ip_integrand = -(A / x_grid) + (1 + A) * x_grid
         Ip_integrand[mask] = 0
         Ip_integral = np.sum(Ip_integrand) * dxdy
 
@@ -289,18 +288,30 @@ class AnalyticGradShafranovSolution(abc.ABC):
         # Calculate value of psi at magnetic axis for given plasma current.
         self.psi_0 = self.plasma_current_MA * 1e6 * const.mu_0 * self.major_radius_m / Ip_integral
 
-    def pressure_kPa(self, psi_bar):
+    def pressure_kPa(self, psi_bar: float):
         ''' Plasma pressure as a function of the normalised flux psi_bar (NOT psiN!) [kPa]. '''
         A = self.pressure_parameter
         return 1e-3 * (self.psi_0**2 / self.major_radius_m**4 / const.mu_0) * (1 + A) * psi_bar 
-    def f_function(self, psi_bar):
+    def f_function(self, psi_bar: float):
         ''' F function radius * toroidal magnetic field as a function of the normalised flux psi_bar (NOT psiN!) [Wb/m]. '''
         R0, B0 = self.major_radius_m, self.reference_magnetic_field_T
         psi0, A = self.psi_0, self.pressure_parameter
         return R0 * (B0**2 - (2*psi0**2 / R0**4) * A * psi_bar)**0.5
+    def toroidal_current_density_kA_per_m2(self, R, Z):
+        ''' Toroidal current density [kA m^-2]. '''
+        x = R / R0
+        R0, psi0, A = self.major_radius_m, self.psi_0, self.pressure_parameter
+        return 1e-3 * psi0 * ((1 + A) * x**2 - A / x) / (const.mu_0 * R0**3)
 
 class Limiter(AnalyticGradShafranovSolution):
     def calculate_coefficients(self):
+        '''
+        Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
+        required geometry factors at 3 points:
+            Inner equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
+            Outer equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
+            High point: point of maximum Z on the boundary contour.
+        '''
         e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
         
         # Some coefficients from D shaped model.
@@ -318,31 +329,31 @@ class Limiter(AnalyticGradShafranovSolution):
         M = np.zeros((7, 7))
         y = np.zeros(7)
 
-        # Outer equatorial point.
+        # Outer equatorial point (psi = 0).
         M[0] = self.psi_homogenous(x_eq_outer, y_eq_outer)
         y[0] = -self.psi_particular(x_eq_outer, y_eq_outer)
 
-        # Inner equatorial point.
+        # Inner equatorial point (psi = 0).
         M[1] = self.psi_homogenous(x_eq_inner, y_eq_inner)
         y[1] = -self.psi_particular(x_eq_inner, y_eq_inner)
 
-        # High point.
+        # High point (psi = 0).
         M[2] = self.psi_homogenous(x_high, y_high)
         y[2] = -self.psi_particular(x_high, y_high)
 
-        # High point maximum.
+        # High point maximum (d(psi)/dx = 0).
         M[3] = self.psi_homogenous_dx(x_high, y_high)
         y[3] = -self.psi_particular_dx(x_high, y_high)
 
-        # Outer equatorial point curvature.
+        # Outer equatorial point curvature (d^2(psi)/dy^2 + N1 * d(psi)/dx = 0).
         M[4] = np.array(self.psi_homogenous_dy2(x_eq_outer, y_eq_outer)) + N1 * np.array(self.psi_homogenous_dx(x_eq_outer, y_eq_outer))
         y[4] = -N1 * self.psi_particular_dx(x_eq_outer, y_eq_outer)
 
-        # Inner equatorial point curvature.
+        # Inner equatorial point curvature (d^2(psi)/dy^2 + N2 * d(psi)/dx = 0).
         M[5] = np.array(self.psi_homogenous_dy2(x_eq_inner, y_eq_inner)) + N2 * np.array(self.psi_homogenous_dx(x_eq_inner, y_eq_inner))
         y[5] = -N2 * self.psi_particular_dx(x_eq_inner, y_eq_inner)
 
-        # High point curvature.
+        # High point curvature (d^2(psi)/dx^2 + N3 * d(psi)/dy = 0).
         M[6] = np.array(self.psi_homogenous_dx2(x_high, y_high)) + N3 * np.array(self.psi_homogenous_dy(x_high, y_high))
         y[6] = -self.psi_particular_dx2(x_high, y_high)
 
@@ -350,6 +361,13 @@ class Limiter(AnalyticGradShafranovSolution):
 
 class DoubleNull(AnalyticGradShafranovSolution):
     def calculate_coefficients(self):
+        '''
+        Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
+        required geometry factors at 3 points:
+            Inner equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
+            Outer equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
+            Upper X point: point of maximum Z on the boundary contour.
+        '''
         e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
 
         # Some coefficients from D shaped model.
@@ -366,31 +384,31 @@ class DoubleNull(AnalyticGradShafranovSolution):
         M = np.zeros((7, 7))
         y = np.zeros(7)
 
-        # Outer equatorial point.
+        # Outer equatorial point (psi = 0).
         M[0] = self.psi_homogenous(x_eq_outer, y_eq_outer)
         y[0] = -self.psi_particular(x_eq_outer, y_eq_outer)
 
-        # Inner equatorial point.
+        # Inner equatorial point (psi = 0).
         M[1] = self.psi_homogenous(x_eq_inner, y_eq_inner)
         y[1] = -self.psi_particular(x_eq_inner, y_eq_inner)
 
-        # Outer equatorial point curvature.
+        # Outer equatorial point curvature (d^2(psi)/dy^2 + N1 * d(psi)/dx = 0).
         M[2] = np.array(self.psi_homogenous_dy2(x_eq_outer, y_eq_outer)) + N1 * np.array(self.psi_homogenous_dx(x_eq_outer, y_eq_outer))
         y[2] = -N1 * self.psi_particular_dx(x_eq_outer, y_eq_outer)
 
-        # Inner equatorial point curvature.
+        # Inner equatorial point curvature (d^2(psi)/dy^2 + N2 * d(psi)/dx = 0).
         M[3] = np.array(self.psi_homogenous_dy2(x_eq_inner, y_eq_inner)) + N2 * np.array(self.psi_homogenous_dx(x_eq_inner, y_eq_inner))
         y[3] = -N2 * self.psi_particular_dx(x_eq_inner, y_eq_inner)
 
-        # X point.
+        # X point (psi = 0).
         M[4] = self.psi_homogenous(x_sep, y_sep)
         y[4] = -self.psi_particular(x_sep, y_sep)
 
-        # B poloidal = 0 at X point.
+        # B poloidal = 0 at X point (d(psi)/dx = 0).
         M[5] = self.psi_homogenous_dx(x_sep, y_sep)
         y[5] = -self.psi_particular_dx(x_sep, y_sep)
 
-        # B poloidal = 0 at X point.
+        # B poloidal = 0 at X point (d(psi)/dy = 0).
         M[6] = self.psi_homogenous_dy(x_sep, y_sep)
 
         self.coefficients = np.linalg.solve(M, y)
@@ -402,8 +420,12 @@ class DoubleNull(AnalyticGradShafranovSolution):
 
 class SingleNull(AnalyticGradShafranovSolution):
     @staticmethod
-    def psi_homogenous(x, y):
-        ''' x = r / Rmaj, y = z / Rmaj '''
+    def psi_homogenous(x: float, y: float):
+        '''
+        12 homogenous solutions of the normalised Grad-Shafranov equation expanded up to order x^6 and y^6.
+        x = R / R0 and y = Z / R0 are the radius R and height Z normalised to the major radius R0. Solutions which
+        are odd in y are also now included.
+        '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         x4 = x2**2
 
@@ -416,7 +438,8 @@ class SingleNull(AnalyticGradShafranovSolution):
 
         return p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12
     @staticmethod
-    def psi_homogenous_dx(x, y):
+    def psi_homogenous_dx(x: float, y: float):
+        ''' First derivative of the homogeneous polynomials with respect to x. '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
 
         dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx = AnalyticGradShafranovSolution.psi_homogenous_dx(x, y)
@@ -428,7 +451,8 @@ class SingleNull(AnalyticGradShafranovSolution):
 
         return dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx, dp8_dx, dp9_dx, dp10_dx, dp11_dx, dp12_dx
     @staticmethod
-    def psi_homogenous_dx2(x, y):
+    def psi_homogenous_dx2(x: float, y: float):
+        ''' Second derivative of the homogeneous polynomials with respect to x. '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
 
         d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2 = AnalyticGradShafranovSolution.psi_homogenous_dx2(x, y)
@@ -440,7 +464,8 @@ class SingleNull(AnalyticGradShafranovSolution):
 
         return d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2, d2p8_dx2, d2p9_dx2, d2p10_dx2, d2p11_dx2, d2p12_dx2
     @staticmethod
-    def psi_homogenous_dy(x, y):
+    def psi_homogenous_dy(x: float, y: float):
+        ''' First derivative of the homogeneous polynomials with respect to y. '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
         y4 = y2**2
 
@@ -453,7 +478,8 @@ class SingleNull(AnalyticGradShafranovSolution):
 
         return dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy, dp8_dy, dp9_dy, dp10_dy, dp11_dy, dp12_dy
     @staticmethod
-    def psi_homogenous_dy2(x, y):
+    def psi_homogenous_dy2(x: float, y: float):
+        ''' Second derivative of the homogeneous polynomials with respect to y. '''
         x2, y2, ln_x = x**2, y**2, np.log(x)
 
         d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2 = AnalyticGradShafranovSolution.psi_homogenous_dy2(x, y)
@@ -465,6 +491,14 @@ class SingleNull(AnalyticGradShafranovSolution):
 
         return d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2, d2p8_dy2, d2p9_dy2, d2p10_dy2, d2p11_dy2, d2p12_dy2
     def calculate_coefficients(self):
+        '''
+        Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
+        required geometry factors at 3 points:
+            Inner equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
+            Outer equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
+            High point: point of maximum Z on the boundary contour.
+            Upper X point: point of maximum Z on the boundary contour.
+        '''
         e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
 
         # Some coefficients from D shaped model.
@@ -484,48 +518,48 @@ class SingleNull(AnalyticGradShafranovSolution):
         M = np.zeros((12, 12))
         y = np.zeros(12)
 
-        # Outer equatorial point.
+        # Outer equatorial point (psi = 0).
         M[0] = self.psi_homogenous(x_eq_outer, y_eq_outer)
         y[0] = -self.psi_particular(x_eq_outer, y_eq_outer)
 
-        # Inner equatorial point.
+        # Inner equatorial point (psi = 0).
         M[1] = self.psi_homogenous(x_eq_inner, y_eq_inner)
         y[1] = -self.psi_particular(x_eq_inner, y_eq_inner)
 
-        # Upper high point.
+        # Upper high point (psi = 0).
         M[2] = self.psi_homogenous(x_high, y_high)
         y[2] = -self.psi_particular(x_high, y_high)
 
-        # Lower X point.
+        # Lower X point (psi = 0).
         M[3] = self.psi_homogenous(x_sep, y_sep)
         y[3] = -self.psi_particular(x_sep, y_sep)
 
-        # Outer equatorial point up down symmetry.
+        # Outer equatorial point up down symmetry (d(psi)/dy = 0).
         M[4] = self.psi_homogenous_dy(x_eq_outer, y_eq_outer)
 
-        # Inner equatorial point up down symmetry.
+        # Inner equatorial point up down symmetry (d(psi)/dy = 0).
         M[5] = self.psi_homogenous_dy(x_eq_inner, y_eq_inner)
 
-        # Upper high point maximum.
+        # Upper high point maximum (d(psi)/dx = 0).
         M[6] = self.psi_homogenous_dx(x_high, y_high)
         y[6] = -self.psi_particular_dx(x_high, y_high)
 
-        # B poloidal = 0 at lower X point.
+        # B poloidal = 0 at lower X point (d(psi)/dx = 0)).
         M[7] = self.psi_homogenous_dx(x_sep, y_sep)
         y[7] = -self.psi_particular_dx(x_sep, y_sep)
 
-        # B poloidal = 0 at lower X point.
+        # B poloidal = 0 at lower X point (d(psi)/dy = 0).
         M[8] = self.psi_homogenous_dy(x_sep, y_sep)
 
-        # Outer equatorial point curvature.
+        # Outer equatorial point curvature (d^2(psi)/dy^2 + N1 * d(psi)/dx = 0).
         M[9] = np.array(self.psi_homogenous_dy2(x_eq_outer, y_eq_outer)) + N1 * np.array(self.psi_homogenous_dx(x_eq_outer, y_eq_outer))
         y[9] = -N1 * self.psi_particular_dx(x_eq_outer, y_eq_outer)
 
-        # Inner equatorial point curvature.
+        # Inner equatorial point curvature (d^2(psi)/dy^2 + N2 * d(psi)/dx = 0).
         M[10] = np.array(self.psi_homogenous_dy2(x_eq_inner, y_eq_inner)) + N2 * np.array(self.psi_homogenous_dx(x_eq_inner, y_eq_inner))
         y[10] = -N2 * self.psi_particular_dx(x_eq_inner, y_eq_inner)
 
-        # High point curvature.
+        # High point curvature (d^2(psi)/dx^2 + N3 * d(psi)/dy = 0).
         M[11] = np.array(self.psi_homogenous_dx2(x_high, y_high)) + N3 * np.array(self.psi_homogenous_dy(x_high, y_high))
         y[11] = -self.psi_particular_dx2(x_high, y_high)
 
