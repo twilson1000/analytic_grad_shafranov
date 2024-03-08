@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class AnalyticGradShafranovSolution:
     ''' Cerfon and Freidberg 2010 '''
     __slots__ = (
-        "major_radius_m", "A", "coefficients", "inverse_aspect_ratio", "elongation",
+        "major_radius_m", "pressure_parameter", "coefficients", "inverse_aspect_ratio", "elongation",
         "triangularity", "reference_magnetic_field_T", "plasma_current_MA", "psi_0",
         "normalised_circumference", "normalised_volume", "poloidal_beta", "toroidal_beta",
         "total_beta", "normalised_beta", "kink_safety_factor"
@@ -22,7 +22,7 @@ class AnalyticGradShafranovSolution:
     def __init__(
         self,
         major_radius_m: float,
-        A: float,
+        pressure_parameter: float,
         inverse_aspect_ratio: float,
         elongation: float,
         triangularity: float,
@@ -31,7 +31,7 @@ class AnalyticGradShafranovSolution:
         kink_safety_factor: float = None
     ):
         self.major_radius_m: float = float(major_radius_m)
-        self.A: float = float(A)
+        self.pressure_parameter: float = float(pressure_parameter)
         self.inverse_aspect_ratio: float = float(inverse_aspect_ratio)
         self.elongation: float = float(elongation)
         self.triangularity: float = float(triangularity)
@@ -69,7 +69,6 @@ class AnalyticGradShafranovSolution:
         p4 = x2 * (x2 - 4*y2)
         p5 = y2 * (2*y2 - 9*x2) + x2*ln_x*(3*x2 - 12*y2)
         p6 = x2 * (x4 - 12*x2*y2 + 8*y4)
-        # p7 = y2 * (8*y4 - 140*x2*y2 + 75*x4) + x2*ln_x*(-15*x4 + 180*x2*y2 - 120*y4)
         p7 = (-15*x4 + 180*y2*x2 - 120*y4)*x2*ln_x + (75*x4 - 140*x2*y2 + 8*y4)*y2
 
         return p1, p2, p3, p4, p5, p6, p7
@@ -82,10 +81,8 @@ class AnalyticGradShafranovSolution:
         dp2_dx = 2 * x
         dp3_dx = -x * (1 + 2*ln_x)
         dp4_dx = x * (4 * x2 - 8 * y2)
-        # dp5_dx = x * (x2 * (12 * ln_x + 3) - y2 * (30 + 24 * ln_x))
         dp5_dx = 3 * x * ((4*x2 - 8*y2) * ln_x + x2 - 10*y2)
         dp6_dx = x * (6*x4 - 48*x2*y2 + 16*y4)
-        # dp7_dx = x * (-(15 + 90*ln_x)*x4 - (400 + 240*ln_x)*y4 + (480 + 720*ln_x)*x2*y2)
         dp7_dx = -5*x*((18*x4 - 144*x2*y2 + 48*y4)*ln_x + 3*x4 - 96*x2*y2+80*y4)
 
         return dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx
@@ -100,7 +97,6 @@ class AnalyticGradShafranovSolution:
         dp4_dy = -8*x2*y
         dp5_dy = y * (8*y2 - x2 * (18 + 24*ln_x))
         dp6_dy = y * (-24*x4 + 32*x2*y2)
-        # dp7_dy = y * (48 * y4 - (560 + 480*ln_x)*x2*y2 + (150 + 360*ln_x)*x4)
         dp7_dy = y * (48*y4 - (480*ln_x + 560)*x2*y2 + (360*ln_x + 150)*x4)
 
         return dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy
@@ -113,10 +109,8 @@ class AnalyticGradShafranovSolution:
         d2p2_dx2 = 2
         d2p3_dx2 = -3 - 2*ln_x
         d2p4_dx2 = 12*x2 - 8*y2
-        # d2p5_dx2 = x2 * (21 + 36*ln_x) - y2 * (54 + 24*ln_x)
         d2p5_dx2 = (36*x2 - 24*y2) * ln_x + 21*x2 - 54*y2
         d2p6_dx2 = 30*x4 - 144*x2*y2 + 16*y4
-        # d2p7_dx2 = 2160*x2*y2*(1 + ln_x) - x4*(165 + 450*ln_x) - y4*(640 + 240*ln_x)
         d2p7_dx2 = (-450*x4 + 2160*x2*y2 - 240*y4)*ln_x - 165*x4 + 2160*x2*y2 - 640*y4
 
         return d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2
@@ -131,21 +125,23 @@ class AnalyticGradShafranovSolution:
         d2p4_dy2 = -8*x2
         d2p5_dy2 = 24*y2 - x2 * (18 + 24*ln_x)
         d2p6_dy2 = x2 * (-24*x + 98*y2)
-        # d2p7_dy2 = 240*y4 - (1680 + 1440*ln_x)*x2*y2 + (150 + 360*ln_x)*x4
         d2p7_dy2 = 240*y4 - (1440*ln_x + 1680)*x2*y2 + (360*ln_x + 150)*x4
 
         return d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2
     
     def _psi0(self, x, y):
+        A = self.pressure_parameter
         x2, ln_x = x**2, np.log(x)
         x4 = x2**2
-        return 0.5 * self.A * x2 * ln_x - (x4 / 8) * (1 + self.A)
+        return 0.5 * A * x2 * ln_x - (x4 / 8) * (1 + A)
     def _psi0_dx(self, x, y):
+        A = self.pressure_parameter
         x2, ln_x = x**2, np.log(x)
-        return 0.5 * x * (self.A*(2*ln_x + 1) - x2*(1 + self.A))
+        return 0.5 * x * (A*(2*ln_x + 1) - x2*(1 + A))
     def _psi0_dx2(self, x, y):
         x2, ln_x = x**2, np.log(x)
-        return self.A * (1.5 + ln_x) - 1.5 * (1 + self.A) * x2
+        A = self.pressure_parameter
+        return A * (1.5 + ln_x) - 1.5 * (1 + A) * x2
     def _psi_bar(self, x, y):
         psi = self._psi0(x, y)
 
@@ -192,28 +188,28 @@ class AnalyticGradShafranovSolution:
         e, k = self.inverse_aspect_ratio, self.elongation
         Cp, V = self.normalised_circumference, self.normalised_volume
         R0, B0 = self.major_radius_m, self.reference_magnetic_field_T
-        qstar = self.kink_safety_factor
+        A, qstar = self.pressure_parameter, self.kink_safety_factor
 
         # Calculate two integrals appearing in expressions for beta and plasma current.
         x, y = self.metric_computation_grid()
         x_grid, ygrid = np.meshgrid(x, y, indexing='ij')
         dxdy = (x[1] - x[0]) * (y[1] - y[0])
 
-        psiN = self._psi_bar(x_grid, ygrid)
-        mask = psiN < 0
+        psi_bar = self._psi_bar(x_grid, ygrid)
+        mask = psi_bar < 0
 
         # This is proportional to the total plasma current.
-        Ip_integrand = (1 + self.A) * x_grid - (self.A / x_grid)
+        Ip_integrand = (1 + A) * x_grid - (A / x_grid)
         Ip_integrand[mask] = 0
         Ip_integral = np.sum(Ip_integrand) * dxdy
 
         # This is proportional to the average plasma pressure.
-        psix_integrand = psiN * x_grid
+        psix_integrand = psi_bar * x_grid
         psix_integrand[mask] = 0
         psix_integral = np.sum(psix_integrand) * dxdy
         
         # Calculate beta of plasma.
-        self.poloidal_beta = (2 * Cp**2 * (1 + self.A) / V) * psix_integral / Ip_integral**2
+        self.poloidal_beta = (2 * Cp**2 * (1 + A) / V) * psix_integral / Ip_integral**2
         self.toroidal_beta = self.poloidal_beta * e**2 / qstar**2
         self.total_beta = self.poloidal_beta * e**2 / (e**2 + qstar**2)
         self.normalised_beta = (e * R0 * B0 / self.plasma_current_MA) * self.total_beta
@@ -222,12 +218,14 @@ class AnalyticGradShafranovSolution:
         self.psi_0 = self.plasma_current_MA * 1e6 * const.mu_0 * self.major_radius_m / Ip_integral
 
     def pressure_kPa(self, psi_norm):
-        return 1e-3 * (self.psi_0**2 / self.major_radius_m**4 / const.mu_0) * (1 + self.A) * psi_norm 
+        A = self.pressure_parameter
+        return 1e-3 * (self.psi_0**2 / self.major_radius_m**4 / const.mu_0) * (1 + A) * psi_norm 
     def f_function(self, psi_norm):
-        R0, B0, psi0 = self.major_radius_m, self.reference_magnetic_field_T, self.psi_0
-        return R0 * B0 * (1 - (2*psi0**2 / R0**4) * self.A * psi_norm)**0.5
+        R0, B0 = self.major_radius_m, self.reference_magnetic_field_T
+        psi0, A = self.psi_0, self.pressure_parameter
+        return R0 * B0 * (1 - (2*psi0**2 / R0**4) * A * psi_norm)**0.5
 
-class Limited(AnalyticGradShafranovSolution):
+class Limiter(AnalyticGradShafranovSolution):
     def calculate_coefficients(self):
         e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
         
