@@ -38,8 +38,8 @@ class AnalyticGradShafranovSolution(abc.ABC):
         reference_magnetic_field_T: float,
         plasma_current_MA: float,
         kink_safety_factor: float = None,
-        plasma_current_anticlockwise: bool = False,
-        toroidal_field_anticlockwise: bool = False,
+        plasma_current_anticlockwise: bool = True,
+        toroidal_field_anticlockwise: bool = True,
     ):
         '''
         Parameters
@@ -342,7 +342,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         mask = psi_bar < 0
 
         # This is proportional to the total plasma current.
-        Ip_integrand = -(A / x_grid) + (1 + A) * x_grid
+        Ip_integrand = (A / x_grid) - (1 + A) * x_grid
         Ip_integrand[mask] = 0
         Ip_integral = np.sum(Ip_integrand) * dxdy
 
@@ -359,6 +359,10 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         # Calculate value of psi at magnetic axis for given plasma current.
         self.psi_0 = self.plasma_current_MA * 1e6 * const.mu_0 * self.major_radius_m / Ip_integral
+
+        # If the plasma current is clockwise flip the sign of the poloidal flux.
+        if not self.plasma_current_anticlockwise:
+            self.psi_0 *= -1
 
         # Find value of psi on magnetic axis. Know it lies on Z=0 so use Netwon's method to find where d(psi)/dx = 0.
         magnetic_axis = np.array([1.0, 0.0])
@@ -407,7 +411,13 @@ class AnalyticGradShafranovSolution(abc.ABC):
         psi0, A = self.psi_0, self.pressure_parameter
         # Clip psi to 0 to avoid unphysical magnetic fields.
         psi_bar = np.clip(self.psi_norm_to_psi_bar(psi_norm), 0, None)
-        return R0 * (B0**2 - (2*psi0**2 / R0**4) * A * psi_bar)**0.5
+        f = R0 * (B0**2 - (2*psi0**2 / R0**4) * A * psi_bar)**0.5
+
+        # If toroidal field is clockwise flip the sign of f.
+        if not self.toroidal_field_anticlockwise:
+            f *= -1
+
+        return f
     def toroidal_current_density_kA_per_m2(self, R, Z):
         ''' Toroidal current density [kA m^-2]. '''
         x = R / R0
