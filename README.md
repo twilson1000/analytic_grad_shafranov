@@ -19,7 +19,7 @@ $$ -\mu_0 \frac{R_0^4}{\Psi_0^2} p'(\psi) = C \qquad - \frac{R_0^2}{\Psi_0^2} F(
 
 where $A, C$ are constants. As $\Psi_0$ is arbitrary we can rescale it to enforce $A + C = 1$. We also note we can rescale $\psi$ by an arbitary additive constant so the paper can define the seperatrix as the surface $\psi(x, y) = 0$.
 
-We also diverge from the paper by setting $A = -A$ and $\psi =-\psi$ to eliminate some minus signs and ensure the value of $\psi$ on axis is positive. Therefore the Grad-Shafranov equation becomes
+We also diverge from the paper by setting $A = -A$ and $\psi =-\psi$ to eliminate some minus signs and ensure the value of $\psi$ on axis is positive. Note this is equivalent to flipping the sign of $j_\phi$. Therefore the Grad-Shafranov equation becomes
 
 $$ x \frac{\partial}{\partial x} \left( \frac{1}{x} \frac{\partial \psi}{\partial x} \right) + \frac{\partial^2 \psi}{\partial y^2} = -A + (1 + A)x^2 $$
 
@@ -41,14 +41,14 @@ $$ p(\psi) = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \psi \qquad F(\psi) = R_0^2 \l
 
 We can also write the toroidal current density $j_\phi$ as
 
-$$ \mu_0 R j_\phi = \frac{\Psi_0}{R_0^2} \left( -A + (1 + A)x^2 \right) $$
+$$ \mu_0 R j_\phi = \frac{\Psi_0}{R_0^2} \left( A - (1 + A)x^2 \right) $$
 
-$$ \implies j_\phi(x, y) = \frac{1}{\mu_0} \frac{\Psi_0}{R_0} \left[ -\frac{A}{x} + (1 + A)x \right] $$
+$$ \implies j_\phi(x, y) = \frac{1}{\mu_0} \frac{\Psi_0}{R_0} \left[ \frac{A}{x} - (1 + A)x \right] $$
 
 By integrating over the plasma cross section we can write the total plasma current $I_p$ as
 
-$$ I_p = \frac{1}{\mu_0} \frac{\Psi_0}{R_0} \int \left[ -\frac{A}{x} + (1 + A)x \right] dx dy = \frac{1}{\mu_0} \frac{\Psi_0}{R_0} I_1 $$
-$$ I_1 := \int \left[ -\frac{A}{x} + (1 + A)x \right] dx dy $$
+$$ I_p = \frac{1}{\mu_0} \frac{\Psi_0}{R_0} \int \left[ \frac{A}{x} - (1 + A)x \right] dx dy = \frac{1}{\mu_0} \frac{\Psi_0}{R_0} I_1 $$
+$$ I_1 := \int \left[ \frac{A}{x} - (1 + A)x \right] dx dy $$
 
 Once we choose $A$ we can therefore set the correct plasma current by setting $\Psi_0 = \mu_0 I_p R_0 / I_1$.
 
