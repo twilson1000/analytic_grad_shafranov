@@ -24,7 +24,8 @@ class AnalyticGradShafranovSolution(abc.ABC):
         "major_radius_m", "pressure_parameter", "coefficients", "inverse_aspect_ratio", "elongation",
         "triangularity", "reference_magnetic_field_T", "plasma_current_MA", "psi_0",
         "normalised_circumference", "normalised_volume", "poloidal_beta", "toroidal_beta",
-        "total_beta", "normalised_beta", "kink_safety_factor", "psi_axis", "magnetic_axis"
+        "total_beta", "normalised_beta", "kink_safety_factor", "psi_axis", "magnetic_axis",
+        "plasma_current_anticlockwise", "toroidal_field_anticlockwise"
     )
 
     def __init__(
@@ -36,7 +37,9 @@ class AnalyticGradShafranovSolution(abc.ABC):
         triangularity: float,
         reference_magnetic_field_T: float,
         plasma_current_MA: float,
-        kink_safety_factor: float = None
+        kink_safety_factor: float = None,
+        plasma_current_anticlockwise: bool = False,
+        toroidal_field_anticlockwise: bool = False,
     ):
         '''
         Parameters
@@ -67,6 +70,8 @@ class AnalyticGradShafranovSolution(abc.ABC):
         self.elongation: float = float(elongation)
         self.triangularity: float = float(triangularity)
         self.reference_magnetic_field_T: float = float(reference_magnetic_field_T)
+        plasma_current_anticlockwise: bool = plasma_current_anticlockwise
+        toroidal_field_anticlockwise: bool = toroidal_field_anticlockwise
 
         # Solve for the weighting coefficients for each of the polynomials.
         self.calculate_coefficients()
@@ -191,6 +196,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         x2, ln_x = x**2, np.log(x)
         A = self.pressure_parameter
         return A * (1.5 + ln_x) - 1.5 * (1 + A) * x2
+    
     def psi_bar(self, x: float, y: float) -> float:
         '''
         Poloidal flux function normalised to psi0. This is NOT the commonly encountered psi normalised psiN!
@@ -203,10 +209,72 @@ class AnalyticGradShafranovSolution(abc.ABC):
             psi += c * p
 
         return psi
+    def psi_bar_dx(self, x: float, y: float) -> float:
+        '''
+        First derivative of poloidal flux function normalised to psi0 with respect to x.        
+        '''
+        psi_dx = self.psi_particular_dx(x, y)
+
+        # Add weighted sum of the homogeneous solutions.
+        for c, p in zip(self.coefficients, self.psi_homogenous_dx(x, y)):
+            psi_dx += c * p
+
+        return psi_dx
+    def psi_bar_dy(self, x: float, y: float) -> float:
+        '''
+        First derivative of poloidal flux function normalised to psi0 with respect to y.        
+        '''
+        psi_dy = 0
+
+        # Add weighted sum of the homogeneous solutions.
+        for c, p in zip(self.coefficients, self.psi_homogenous_dy(x, y)):
+            psi_dy += c * p
+
+        return psi_dy
+    def psi_bar_dx2(self, x: float, y: float) -> float:
+        '''
+        Second derivative of poloidal flux function normalised to psi0 with respect to x.        
+        '''
+        psi_dx2 = self.psi_particular_dx2(x, y)
+
+        # Add weighted sum of the homogeneous solutions.
+        for c, p in zip(self.coefficients, self.psi_homogenous_dx2(x, y)):
+            psi_dx2 += c * p
+
+        return psi_dx2
+    def psi_bar_dy2(self, x: float, y: float) -> float:
+        '''
+        Second derivative of poloidal flux function normalised to psi0 with respect to y.        
+        '''
+        psi_dy2 = 0
+
+        # Add weighted sum of the homogeneous solutions.
+        for c, p in zip(self.coefficients, self.psi_homogenous_dy2(x, y)):
+            psi_dy2 += c * p
+
+        return psi_dy2
+    
     def psi(self, R: float, Z: float) -> float:
         ''' Poloidal flux function [Wb]. '''
         R0 = self.major_radius_m
         return self.psi_0 * self.psi_bar(R / R0, Z / R0)
+    def psi_dR(self, R: float, Z: float) -> float:
+        ''' First derivative of the poloidal flux function with respect to R [Wb / m]. '''
+        R0 = self.major_radius_m
+        return self.psi_0 * self.psi_bar_dx(R / R0, Z / R0) / R0
+    def psi_dZ(self, R: float, Z: float) -> float:
+        ''' First derivative of the poloidal flux function with respect to Z [Wb / m]. '''
+        R0 = self.major_radius_m
+        return self.psi_0 * self.psi_bar_dy(R / R0, Z / R0) / R0
+    def magnetic_field(self, R: float, Z: float) -> Tuple[float, float, float]:
+        ''' (R, phi, Z) components of the magnetic field [T]. '''
+        psi_norm = self.psi_norm(R, Z)
+        B_R = -self.psi_dZ(R, Z) / R
+        B_Z = self.psi_dR(R, Z) / R
+        B_toroidal = self.f_function(psi_norm) / R
+
+        return B_R, B_toroidal, B_Z
+
     def psi_norm(self, R: float, Z: float) -> float:
         R0 = self.major_radius_m
         return self.psi_bar_to_psi_norm(self.psi_bar(R / R0, Z / R0))
@@ -299,24 +367,10 @@ class AnalyticGradShafranovSolution(abc.ABC):
         max_iterations = 100
         tol = 1e-4
         for i in range(max_iterations):
-            psi_dx = self.psi_particular_dx(*magnetic_axis)
-            psi_dy = 0
-            psi_dx2 = self.psi_particular_dx2(*magnetic_axis)
-            psi_dy2 = 0
-
-            data = zip(
-                self.coefficients,
-                self.psi_homogenous_dx(*magnetic_axis),
-                self.psi_homogenous_dy(*magnetic_axis),
-                self.psi_homogenous_dx2(*magnetic_axis),
-                self.psi_homogenous_dy2(*magnetic_axis),
-            )
-
-            for c, dx, dy, dx2, dy2 in data:
-                psi_dx += c * dx
-                psi_dy += c * dy
-                psi_dx2 += c * dx2
-                psi_dy2 += c * dy2
+            psi_dx = self.psi_bar_dx(*magnetic_axis)
+            psi_dy = self.psi_bar_dy(*magnetic_axis)
+            psi_dx2 = self.psi_bar_dx2(*magnetic_axis)
+            psi_dy2 = self.psi_bar_dy2(*magnetic_axis)
 
             correction[:] = (psi_dx / psi_dx2), (psi_dy / psi_dy2)
             magnetic_axis -= correction
