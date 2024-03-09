@@ -52,15 +52,15 @@ $$ I_1 := \int \left[ \frac{A}{x} - (1 + A)x \right] dx dy $$
 
 Once we choose $A$ we can therefore set the correct plasma current by setting $\Psi_0 = \mu_0 I_p R_0 / I_1$.
 
-We can also find the volume averaged plasma pressure $<p> = \int p dV / \int dV$
+We can also find the volume averaged plasma pressure ${\<}p{\>} = \int p dV / \int dV$
 
-$$ <p>= \frac{\int p(R, Z) 2\pi R dR dZ}{\int 2 \pi R dR dZ} = \frac{2 \pi R_0^3 \int p(x, y) x dx dy}{2 \pi R_0^3 \int x dx dy} = \frac{1}{V} \int p(x, y) x dx dy $$
+$$ {\<}p{\>}= \frac{\int p(R, Z) 2\pi R dR dZ}{\int 2 \pi R dR dZ} = \frac{2 \pi R_0^3 \int p(x, y) x dx dy}{2 \pi R_0^3 \int x dx dy} = \frac{1}{V} \int p(x, y) x dx dy $$
 
 where we have introduced the normalised volume $V = \int x dx dy$. Substituting in the expression for $p(x, y)$ from above
 
-$$ <p> = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \int \psi(x, y) x dx dy = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) I_2 $$
+$$ {\<}p{\>} = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \int \psi(x, y) x dx dy = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) I_2 $$
 $$ I_2 = \int \psi(x, y) x dx dy $$
 
-The poloidal beta is defined as $\beta_p = 2 \mu_0 <p> / \bar{B}_p^2 $ where $\bar{B} = \mu_0 I / R_0 C_p$ is the average poloidal magnetic field on the boundary $\psi = 0$ and $C_p$ is the plasma cross section circumference normalised by $R_0$. Substituting in the above expressions
+The poloidal beta is defined as $\beta_p = 2 \mu_0 {\<}p{\>} / \bar{B}_p^2$ where $\bar{B} = \mu_0 I / R_0 C_p$ is the average poloidal magnetic field on the boundary $\psi = 0$ and $C_p$ is the plasma cross section circumference normalised by $R_0$. Substituting in the above expressions
 
 $$ \beta_p = \frac{2 \mu_0 \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \frac{I_2}{V}}{\left(\frac{\mu_0 I}{R_0 C_p}\right)^2} = \frac{2 \frac{\Psi_0^2}{R_0^4} (1 + A) \frac{I_2}{V}}{\frac{(\Psi_0 I_1)^2}{R_0^4 C_p^2}} = 2(1 + A) \frac{C_p^2}{V} \frac{I_2}{I_1^2} $$
