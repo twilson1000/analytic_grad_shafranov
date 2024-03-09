@@ -70,8 +70,8 @@ class AnalyticGradShafranovSolution(abc.ABC):
         self.elongation: float = float(elongation)
         self.triangularity: float = float(triangularity)
         self.reference_magnetic_field_T: float = float(reference_magnetic_field_T)
-        plasma_current_anticlockwise: bool = plasma_current_anticlockwise
-        toroidal_field_anticlockwise: bool = toroidal_field_anticlockwise
+        self.plasma_current_anticlockwise: bool = plasma_current_anticlockwise
+        self.toroidal_field_anticlockwise: bool = toroidal_field_anticlockwise
 
         # Solve for the weighting coefficients for each of the polynomials.
         self.calculate_coefficients()
@@ -210,9 +210,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         return psi
     def psi_bar_dx(self, x: float, y: float) -> float:
-        '''
-        First derivative of poloidal flux function normalised to psi0 with respect to x.        
-        '''
+        ''' First derivative of poloidal flux function normalised to psi0 with respect to x. '''
         psi_dx = self.psi_particular_dx(x, y)
 
         # Add weighted sum of the homogeneous solutions.
@@ -221,9 +219,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         return psi_dx
     def psi_bar_dy(self, x: float, y: float) -> float:
-        '''
-        First derivative of poloidal flux function normalised to psi0 with respect to y.        
-        '''
+        ''' First derivative of poloidal flux function normalised to psi0 with respect to y. '''
         psi_dy = 0
 
         # Add weighted sum of the homogeneous solutions.
@@ -232,9 +228,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         return psi_dy
     def psi_bar_dx2(self, x: float, y: float) -> float:
-        '''
-        Second derivative of poloidal flux function normalised to psi0 with respect to x.        
-        '''
+        ''' Second derivative of poloidal flux function normalised to psi0 with respect to x. '''
         psi_dx2 = self.psi_particular_dx2(x, y)
 
         # Add weighted sum of the homogeneous solutions.
@@ -243,9 +237,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         return psi_dx2
     def psi_bar_dy2(self, x: float, y: float) -> float:
-        '''
-        Second derivative of poloidal flux function normalised to psi0 with respect to y.        
-        '''
+        ''' Second derivative of poloidal flux function normalised to psi0 with respect to y. '''
         psi_dy2 = 0
 
         # Add weighted sum of the homogeneous solutions.
@@ -484,7 +476,7 @@ class DoubleNull(AnalyticGradShafranovSolution):
     __slots__ = ("x_point_lower", "x_point_upper")
 
     def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
         R0 = self.major_radius_m
@@ -553,7 +545,7 @@ class SingleNull(AnalyticGradShafranovSolution):
     __slots__ = ("x_point_lower", )
 
     def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
         R0 = self.major_radius_m
