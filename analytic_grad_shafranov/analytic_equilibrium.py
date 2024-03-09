@@ -24,7 +24,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         "major_radius_m", "pressure_parameter", "coefficients", "inverse_aspect_ratio", "elongation",
         "triangularity", "reference_magnetic_field_T", "plasma_current_MA", "psi_0",
         "normalised_circumference", "normalised_volume", "poloidal_beta", "toroidal_beta",
-        "total_beta", "normalised_beta", "kink_safety_factor"
+        "total_beta", "normalised_beta", "kink_safety_factor", "psi_axis", "magnetic_axis"
     )
 
     def __init__(
@@ -205,7 +205,11 @@ class AnalyticGradShafranovSolution(abc.ABC):
         return psi
     def psi(self, R: float, Z: float) -> float:
         ''' Poloidal flux function [Wb]. '''
-        return self.psi_0 * self.psi_bar(R / self.major_radius_m, Z / self.major_radius_m)
+        R0 = self.major_radius_m
+        return self.psi_0 * self.psi_bar(R / R0, Z / R0)
+    def psi_norm(self, R: float, Z: float) -> float:
+        R0 = self.major_radius_m
+        return self.psi_bar_to_psi_norm(self.psi_bar(R / R0, Z / R0))
     
     def d_shape_boundary(self, theta: float) -> float:
         ''' D shaped boundary contour for the prescribed geometry factors. '''
@@ -288,14 +292,67 @@ class AnalyticGradShafranovSolution(abc.ABC):
         # Calculate value of psi at magnetic axis for given plasma current.
         self.psi_0 = self.plasma_current_MA * 1e6 * const.mu_0 * self.major_radius_m / Ip_integral
 
-    def pressure_kPa(self, psi_bar: float):
-        ''' Plasma pressure as a function of the normalised flux psi_bar (NOT psiN!) [kPa]. '''
+        # Find value of psi on magnetic axis. Know it lies on Z=0 so use Netwon's method to find where d(psi)/dx = 0.
+        magnetic_axis = np.array([1.0, 0.0])
+        correction = np.zeros(2)
+
+        max_iterations = 100
+        tol = 1e-4
+        for i in range(max_iterations):
+            psi_dx = self.psi_particular_dx(*magnetic_axis)
+            psi_dy = 0
+            psi_dx2 = self.psi_particular_dx2(*magnetic_axis)
+            psi_dy2 = 0
+
+            data = zip(
+                self.coefficients,
+                self.psi_homogenous_dx(*magnetic_axis),
+                self.psi_homogenous_dy(*magnetic_axis),
+                self.psi_homogenous_dx2(*magnetic_axis),
+                self.psi_homogenous_dy2(*magnetic_axis),
+            )
+
+            for c, dx, dy, dx2, dy2 in data:
+                psi_dx += c * dx
+                psi_dy += c * dy
+                psi_dx2 += c * dx2
+                psi_dy2 += c * dy2
+
+            correction[:] = (psi_dx / psi_dx2), (psi_dy / psi_dy2)
+            magnetic_axis -= correction
+
+            if np.linalg.norm(correction) < tol:
+                logger.info(f"Found magnetic axis in {i+1} iterations.")
+                self.magnetic_axis = magnetic_axis * self.major_radius_m
+                break
+        
+        if i == max_iterations - 1:
+            logger.error(f"Failed to find magnetic axis within {max_iterations} iterations.")
+
+        # Evaluate value of psi_norm at the magnetic axis.
+        self.psi_axis = self.psi(*self.magnetic_axis)
+    @property
+    def shafranov_shift(self) -> float:
+        return self.magnetic_axis[0] - self.major_radius_m
+
+    def psi_bar_to_psi_norm(self, psi_bar: float) -> float:
+        ''' Convert psi_bar parameter used in the normalised Grad Shafranov equation to the standard normalised poloidal flux co-ordinate. '''
+        return 1 - (psi_bar * self.psi_0 / self.psi_axis)
+    def psi_norm_to_psi_bar(self, psi_norm: float) -> float:
+        ''' Convert normalised poloidal flux co-ordinate to the psi_bar parameter used in the normalised Grad Shafranov equation. '''
+        return (1 - psi_norm) * self.psi_axis / self.psi_0
+    def pressure_kPa(self, psi_norm: float):
+        ''' Plasma pressure as a function of the normalised poloidal flux [kPa]. '''
         A = self.pressure_parameter
-        return 1e-3 * (self.psi_0**2 / self.major_radius_m**4 / const.mu_0) * (1 + A) * psi_bar 
-    def f_function(self, psi_bar: float):
-        ''' F function radius * toroidal magnetic field as a function of the normalised flux psi_bar (NOT psiN!) [Wb/m]. '''
+        # Clip psi to 0 so there is not negative pressure.
+        psi_bar = np.clip(self.psi_norm_to_psi_bar(psi_norm), 0, None)
+        return 1e-3 * (self.psi_0**2 / self.major_radius_m**4 / const.mu_0) * (1 + A) * psi_bar
+    def f_function(self, psi_norm: float):
+        ''' F function radius * toroidal magnetic field as a function of the normalised poloidal flux [Wb/m]. '''
         R0, B0 = self.major_radius_m, self.reference_magnetic_field_T
         psi0, A = self.psi_0, self.pressure_parameter
+        # Clip psi to 0 to avoid unphysical magnetic fields.
+        psi_bar = np.clip(self.psi_norm_to_psi_bar(psi_norm), 0, None)
         return R0 * (B0**2 - (2*psi0**2 / R0**4) * A * psi_bar)**0.5
     def toroidal_current_density_kA_per_m2(self, R, Z):
         ''' Toroidal current density [kA m^-2]. '''
