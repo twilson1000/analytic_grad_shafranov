@@ -481,6 +481,16 @@ class Limiter(AnalyticGradShafranovSolution):
         self.coefficients = np.linalg.solve(M, y)
 
 class DoubleNull(AnalyticGradShafranovSolution):
+    __slots__ = ("x_point_lower", "x_point_upper")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+
+        e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
+        R0 = self.major_radius_m
+        self.x_point_lower: Tuple[float, float] = (R0*(1 - 1.1*d*e), -1.1*R0*k*e)
+        self.x_point_upper: Tuple[float, float] = (R0*(1 - 1.1*d*e), 1.1*R0*k*e)
+
     def calculate_coefficients(self):
         '''
         Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
@@ -540,6 +550,15 @@ class DoubleNull(AnalyticGradShafranovSolution):
         return x, y
 
 class SingleNull(AnalyticGradShafranovSolution):
+    __slots__ = ("x_point_lower", )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+
+        e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
+        R0 = self.major_radius_m
+        self.x_point_lower: Tuple[float, float] = (R0*(1 - 1.1*d*e), -1.1*R0*k*e)
+
     @staticmethod
     def psi_homogenous(x: float, y: float):
         '''
