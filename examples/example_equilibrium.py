@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 
 # Local imports.
-from analytic_grad_shafranov import AnalyticGradShafranovSolution, Limiter, SingleNull, DoubleNull
+from analytic_grad_shafranov import AnalyticGradShafranovSolution, Limiter, SingleNull, DoubleNull, ExtremalPoint, XPoint, UpDownAsymmetric
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +95,19 @@ def plot_plasma(plasma: AnalyticGradShafranovSolution, r=None, z=None, title=Non
     # Dump some interesting 0D parameters.
     logger.info(f"Major radius [m] = {plasma.major_radius_m:.2f}")
     logger.info(f"Inverse aspect ratio [] = {plasma.inverse_aspect_ratio:.2f}")
-    logger.info(f"Elongation [] = {plasma.elongation:.2f}")
-    logger.info(f"Triangularity [] = {plasma.triangularity:.2f}")
+    
+    if isinstance(plasma.elongation, tuple):
+        logger.info(f"Upper Elongation [] = {plasma.elongation[0]:.2f}")
+        logger.info(f"Lower Elongation [] = {plasma.elongation[1]:.2f}")
+    else:
+        logger.info(f"Elongation [] = {plasma.elongation:.2f}")
+    
+    if isinstance(plasma.triangularity, tuple):
+        logger.info(f"Upper Triangularity [] = {plasma.triangularity[0]:.2f}")
+        logger.info(f"Lower Triangularity [] = {plasma.triangularity[1]:.2f}")
+    else:
+        logger.info(f"Triangularity [] = {plasma.triangularity:.2f}")
+
     logger.info(f"Reference magnetic field [T] = {plasma.reference_magnetic_field_T:.2f}")
     logger.info(f"Plasma current [MA] = {plasma.plasma_current_MA:.2f}")
     logger.info(f"Kink Safety factor [] = {plasma.kink_safety_factor:.3f}")
@@ -156,6 +167,18 @@ def mastu_double_null(savefig: bool=True):
     fig, ax = plot_plasma(DoubleNull(R, A, e, k, d, B0, Ip), r=r, z=z, title="MAST-U Double Null")
     if savefig: fig.savefig(save_directory.joinpath("mastu_double_null.svg"))  
 
+def mastu_double_null_up_down_asymmetric(savefig: bool=True):
+    R, A, e, k, d, B0, Ip, qstar = mast_u
+    r = np.linspace(1 - 1.2*e, 1 + 1.2*e, 51)
+    z = np.linspace(-1.2*e*k, 1.2*e*k, 51)
+
+    # Upper triangularity is 5% higher.
+    upper_x_point = XPoint(R * (1 - 1.05*1.1*d*e), e*k*R)
+    lower_x_point = XPoint(R * (1 - 1.1*d*e), -e*k*R)
+
+    fig, ax = plot_plasma(UpDownAsymmetric(R, A, e, upper_x_point, lower_x_point, B0, Ip), r=r, z=z, title="Up-down Asymmetric MAST-U Double Null")
+    if savefig: fig.savefig(save_directory.joinpath("mastu_double_null.svg"))  
+
 def step_double_null(savefig: bool=True):
     R, A, e, k, d, B0, Ip, qstar = step
     r = np.linspace(1 - 1.2*e, 1 + 1.2*e, 51)
@@ -164,7 +187,7 @@ def step_double_null(savefig: bool=True):
     if savefig: fig.savefig(save_directory.joinpath("step_double_null.svg"))   
 
 def main():
-    savefig = True
+    savefig = False
 
     iter_limiter(savefig=savefig)
     iter_single_null(savefig=savefig)
@@ -175,6 +198,7 @@ def main():
     nstx_double_null(savefig=savefig)
 
     mastu_double_null(savefig=savefig)
+    mastu_double_null_up_down_asymmetric(savefig=savefig)
 
     step_double_null(savefig=savefig)
     
