@@ -52,15 +52,49 @@ $$ I_1 := \int \left[ \frac{A}{x} - (1 + A)x \right] dx dy $$
 
 Once we choose $A$ we can therefore set the correct plasma current by setting $\Psi_0 = \mu_0 I_p R_0 / I_1$.
 
-We can also find the volume averaged plasma pressure ${\<}p{\>} = \int p dV / \int dV$
+We can also find the volume averaged plasma pressure ${<}p{>} = \int p dV / \int dV$
 
-$$ {\<}p{\>}= \frac{\int p(R, Z) 2\pi R dR dZ}{\int 2 \pi R dR dZ} = \frac{2 \pi R_0^3 \int p(x, y) x dx dy}{2 \pi R_0^3 \int x dx dy} = \frac{1}{V} \int p(x, y) x dx dy $$
+$$ {<}p{>}= \frac{\int p(R, Z) 2\pi R dR dZ}{\int 2 \pi R dR dZ} = \frac{2 \pi R_0^3 \int p(x, y) x dx dy}{2 \pi R_0^3 \int x dx dy} = \frac{1}{V} \int p(x, y) x dx dy $$
 
 where we have introduced the normalised volume $V = \int x dx dy$. Substituting in the expression for $p(x, y)$ from above
 
-$$ {\<}p{\>} = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \int \psi(x, y) x dx dy = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) I_2 $$
+$$ {<}p{>} = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \int \psi(x, y) x dx dy = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) I_2 $$
 $$ I_2 = \int \psi(x, y) x dx dy $$
 
-The poloidal beta is defined as $\beta_p = 2 \mu_0 {\<}p{\>} / \bar{B}_p^2$ where $\bar{B} = \mu_0 I / R_0 C_p$ is the average poloidal magnetic field on the boundary $\psi = 0$ and $C_p$ is the plasma cross section circumference normalised by $R_0$. Substituting in the above expressions
+The poloidal beta is defined as $\beta_p = 2 \mu_0 {<}p{>} / \bar{B}_p^2$ where $\bar{B} = \mu_0 I / R_0 C_p$ is the average poloidal magnetic field on the boundary $\psi = 0$ and $C_p$ is the plasma cross section circumference normalised by $R_0$. Substituting in the above expressions
 
 $$ \beta_p = \frac{2 \mu_0 \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \frac{I_2}{V}}{\left(\frac{\mu_0 I}{R_0 C_p}\right)^2} = \frac{2 \frac{\Psi_0^2}{R_0^4} (1 + A) \frac{I_2}{V}}{\frac{(\Psi_0 I_1)^2}{R_0^4 C_p^2}} = 2(1 + A) \frac{C_p^2}{V} \frac{I_2}{I_1^2} $$
+
+## Coordinate Systems ##
+
+We use the following coordinate systems correspoinding to COCOS=1:
+
+- $(R, \phi, Z)$ is the right handed cylindrical coordinate system.
+- $(\Psi, \theta, \phi)$ is the right handed flux coordinate system.
+- The toroidal angle $\phi$ is the same direction in both coordinate systems and positive in the **counter-clockwise** direction from above (looking down at the $(R-\phi)$ plane where $Z=0$ from positive $Z$).
+- The poloidal angle is positive in the **clockwise** direction in the $R-Z$ plane. Note this is opposite to the usual poloidal angle in polar coordinates.
+- The function $\psi_{\text{pol}}$ is the poloidal flux per $2\pi$, defined as
+
+$$ \psi_{\text{pol}}(r, z) = - \frac{1}{2\pi} \int B \cdot dS_p $$
+
+- $S_p$ is the properly oriented surface normal for a surface for the disk $R\le r, Z=z$.
+- The poloidal flux function $\psi_{\text{pol}}$ increases as the minor radius / flux coordinate $\rho$ increases i.e. $d\psi_{\text{pol}}/d\rho > 0$.
+- The $q$ profile is defined for a given $\psi$ as
+
+$$ q(\psi) = \frac{1}{2\pi} \oint \frac{F(\psi)}{R|\nabla \psi|} dl_p $$
+
+- The integral above is taken over poloidal distance $l_p$.
+- The $q$ profile is positive when $B_0, I_p > 0$.
+- The magnetic axis is the point of **minimum** $\psi$. The separatrix is defined by $\psi = 0$.
+- The toroidal flux function $\psi_{\text{tor}}$ is the toroidal flux per $2\pi$ defined as
+
+$$ \psi_{\text{tor}}(r, z) = \frac{1}{2\pi} \int B \cdot dS_t $$
+
+- The surface $S_t$ is the poloidal cross section inside the surface of constant $\psi_{\text{pol}}(r, z)$.
+- The toroidal flux function $\psi_{\text{tor}}$ increases as the minor radius / flux coordinate $\rho$ increases.
+
+Under these definitions, for positive (counter-clockwise) toroidal field $B_0$ and plasma current $I_p$
+
+- The poloidal field $B_p$ is **clockwise** and therefore $B_\theta > 0$ as $\theta$ is positive in the clockwise direction.
+- The $q$ profile is positive.
+- The toroidal flux function $\psi_{\text{pol}}$ is positive.
