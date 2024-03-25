@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 
 # Local imports.
-from analytic_grad_shafranov import AnalyticGradShafranovSolution, Limiter, SingleNull, DoubleNull, ExtremalPoint, XPoint, UpDownAsymmetric
+from analytic_grad_shafranov import AnalyticGradShafranovSolution, Limiter, SingleNull, DoubleNull, ExtremalPoint
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +44,7 @@ mast_u = (0.7, 0.1, 0.714, 2.5, 0.4, 0.8, 1, None)
 # STEP baseline with beta normalised = 4.4%.
 step = (3.6, 0.355, 0.556, 2.8, 0.5, 3.4, 20, None)
 
-def plot_plasma(plasma: AnalyticGradShafranovSolution, r=None, z=None, title=None):
-    e, k, R0 = plasma.inverse_aspect_ratio, plasma.elongation, plasma.major_radius_m
-    if r is None:
-        r = np.linspace(1 - 1.1*e, 1 + 1.1*e, 51)
-    if z is None:
-        z = np.linspace(-1.1*e*k, 1.1*e*k, 51)
-
+def plot_plasma(plasma: AnalyticGradShafranovSolution, title=None):
     fig = plt.figure()
     gs = gridspec.GridSpec(2, 2)
     ax_p = fig.add_subplot(gs[0, 0])
@@ -65,21 +59,22 @@ def plot_plasma(plasma: AnalyticGradShafranovSolution, r=None, z=None, title=Non
     ax_F.grid()
 
     # Plot pressure and F functions at the midplane.
-    radius_midplane = R0 * (1 + np.linspace(-1.2*e, 1.2*e, 50))
-    psiN_midplane = plasma.psi_norm(radius_midplane, 0)
-    ax_p.plot(radius_midplane, plasma.pressure_kPa(psiN_midplane), color="black")
-    ax_F.plot(radius_midplane, plasma.f_function(psiN_midplane), color="black")
+    x_plot, y_plot = plasma.plotting_xy_grid()
+    R_plot, Z_plot =  plasma.major_radius_m * x_plot, plasma.major_radius_m * y_plot
+
+    psiN_midplane = plasma.psi_norm(R_plot, 0)
+    ax_p.plot(R_plot, plasma.pressure_kPa(psiN_midplane), color="black")
+    ax_F.plot(R_plot, plasma.f_function(psiN_midplane), color="black")
 
     ax_eq.set_xlabel(r"Radius [m]")
     ax_eq.set_ylabel(r"Height [m]")
     ax_eq.set_aspect('equal')
 
-    R, Z = r * R0, z * R0
-    psiN = plasma.psi_norm(*np.meshgrid(R, Z, indexing='ij'))
+    psiN = plasma.psi_norm(*np.meshgrid(R_plot, Z_plot, indexing='ij'))
 
     # Plot contours of normalised poloidal flux.
-    c = ax_eq.contourf(R, Z, psiN.T, levels=np.linspace(0, 1.2, 13))
-    ax_eq.contour(R, Z, psiN.T, colors="black", levels=np.linspace(0.1, 1, 10))
+    c = ax_eq.contourf(R_plot, Z_plot, psiN.T, levels=np.linspace(0, 1.2, 13))
+    ax_eq.contour(R_plot, Z_plot, psiN.T, colors="black", levels=np.linspace(0.1, 1, 10))
 
     # Mark magnetic axis location.
     ax_eq.scatter(*plasma.magnetic_axis, color="black", marker="x")
@@ -95,19 +90,10 @@ def plot_plasma(plasma: AnalyticGradShafranovSolution, r=None, z=None, title=Non
     # Dump some interesting 0D parameters.
     logger.info(f"Major radius [m] = {plasma.major_radius_m:.2f}")
     logger.info(f"Inverse aspect ratio [] = {plasma.inverse_aspect_ratio:.2f}")
-    
-    if isinstance(plasma.elongation, tuple):
-        logger.info(f"Upper Elongation [] = {plasma.elongation[0]:.2f}")
-        logger.info(f"Lower Elongation [] = {plasma.elongation[1]:.2f}")
-    else:
-        logger.info(f"Elongation [] = {plasma.elongation:.2f}")
-    
-    if isinstance(plasma.triangularity, tuple):
-        logger.info(f"Upper Triangularity [] = {plasma.triangularity[0]:.2f}")
-        logger.info(f"Lower Triangularity [] = {plasma.triangularity[1]:.2f}")
-    else:
-        logger.info(f"Triangularity [] = {plasma.triangularity:.2f}")
-
+    logger.info(f"Upper Elongation [] = {plasma.upper_elongation:.2f}")
+    logger.info(f"Lower Elongation [] = {plasma.lower_elongation:.2f}")
+    logger.info(f"Upper Triangularity [] = {plasma.upper_triangularity:.2f}")
+    logger.info(f"Lower Triangularity [] = {plasma.lower_triangularity:.2f}")
     logger.info(f"Reference magnetic field [T] = {plasma.reference_magnetic_field_T:.2f}")
     logger.info(f"Plasma current [MA] = {plasma.plasma_current_MA:.2f}")
     logger.info(f"Kink Safety factor [] = {plasma.kink_safety_factor:.3f}")
@@ -126,64 +112,57 @@ def plot_plasma(plasma: AnalyticGradShafranovSolution, r=None, z=None, title=Non
     return fig, ax_eq
 
 def iter_limiter(savefig: bool=True):
-    R, A, e, k, d, B0, Ip, qstar = iter
+    R, A, e, k, d, B0, Ip, _ = iter
     plasma = Limiter(R, A, e, k, d, B0, Ip)
     fig, ax = plot_plasma(plasma, title="ITER Baseline Limiter")
     if savefig:
         fig.savefig(save_directory.joinpath("iter_limiter.svg"))
 
 def iter_single_null(savefig: bool=True):
-    R, A, e, k, d, B0, Ip, qstar = iter
-    r = np.linspace(1 - 1.1*e, 1 + 1.1*e, 51)
-    z = np.linspace(-1.2*e*k, 1.1*e*k, 51)
-    fig, ax = plot_plasma(SingleNull(R, A, e, k, d, B0, Ip), r=r, z=z, title="ITER Single Null")
+    R, A, e, k, d, B0, Ip, _ = iter
+    plasma = SingleNull(R, A, e, k, d, B0, Ip)
+    fig, ax = plot_plasma(plasma, title="ITER Single Null")
     if savefig: fig.savefig(save_directory.joinpath("iter_single_null.svg"))
 
 def jet_single_null(savefig: bool=True):
-    R, A, e, k, d, B0, Ip, qstar = jet
-    r = np.linspace(1 - 1.1*e, 1 + 1.1*e, 51)
-    z = np.linspace(-1.2*e*k, 1.1*e*k, 51)
-    fig, ax = plot_plasma(SingleNull(R, A, e, k, d, B0, Ip, kink_safety_factor=qstar), r=r, z=z, title="JET Single Null")
+    R, A, e, k, d, B0, Ip, _ = jet
+    plasma = SingleNull(R, A, e, k, d, B0, Ip)
+    fig, ax = plot_plasma(plasma, title="JET Single Null")
     if savefig: fig.savefig(save_directory.joinpath("jet_single_null.svg"))
 
 def nstx_single_null(savefig: bool=True):
-    R, A, e, k, d, B0, Ip, qstar = nstx
-    r = np.linspace(1 - 1.1*e, 1 + 1.1*e, 51)
-    z = np.linspace(-1.2*e*k, 1.1*e*k, 51)
-    fig, ax = plot_plasma(SingleNull(R, A, e, k, d, B0, Ip, kink_safety_factor=qstar), r=r, z=z, title="NSTX Single Null")
+    R, A, e, k, d, B0, _, qstar = nstx
+    plasma = SingleNull(R, A, e, k, d, B0, None, kink_safety_factor=qstar)
+    fig, ax = plot_plasma(plasma, title="NSTX Single Null")
     if savefig: fig.savefig(save_directory.joinpath("nstx_single_null.svg"))
 
 def nstx_double_null(savefig: bool=True):
     R, A, e, k, d, B0, Ip, qstar = nstx
-    r = np.linspace(1 - 1.1*e, 1 + 1.1*e, 51)
-    z = np.linspace(-1.2*e*k, 1.2*e*k, 51)
-    fig, ax = plot_plasma(DoubleNull(R, A, e, k, d, B0, Ip, kink_safety_factor=qstar), r=r, z=z, title="NSTX Double Null")
+    plasma = DoubleNull(R, A, e, k, d, B0, None, kink_safety_factor=qstar)
+    fig, ax = plot_plasma(plasma, title="NSTX Double Null")
     if savefig: fig.savefig(save_directory.joinpath("nstx_double_null.svg"))
 
 def mastu_double_null(savefig: bool=True):
-    R, A, e, k, d, B0, Ip, qstar = mast_u
-    r = np.linspace(1 - 1.2*e, 1 + 1.2*e, 51)
-    z = np.linspace(-1.2*e*k, 1.2*e*k, 51)
-    fig, ax = plot_plasma(DoubleNull(R, A, e, k, d, B0, Ip), r=r, z=z, title="MAST-U Double Null")
+    R, A, e, k, d, B0, Ip, _ = mast_u
+    plasma = DoubleNull(R, A, e, k, d, B0, Ip)
+    fig, ax = plot_plasma(plasma, title="MAST-U Double Null")
     if savefig: fig.savefig(save_directory.joinpath("mastu_double_null.svg"))  
 
 def mastu_double_null_up_down_asymmetric(savefig: bool=True):
-    R, A, e, k, d, B0, Ip, qstar = mast_u
-    r = np.linspace(1 - 1.2*e, 1 + 1.2*e, 51)
-    z = np.linspace(-1.2*e*k, 1.2*e*k, 51)
+    R, A, e, k, d, B0, Ip, _ = mast_u
 
     # Upper triangularity is 5% higher.
-    upper_x_point = XPoint(R * (1 - 1.05*1.1*d*e), e*k*R)
-    lower_x_point = XPoint(R * (1 - 1.1*d*e), -e*k*R)
+    upper_x = ExtremalPoint(e, 1.05*k, True)
+    lower_x = ExtremalPoint(e, k, True)
+    plasma = AnalyticGradShafranovSolution(R, A, upper_x, lower_x, d, B0, Ip)
 
-    fig, ax = plot_plasma(UpDownAsymmetric(R, A, e, upper_x_point, lower_x_point, B0, Ip), r=r, z=z, title="Up-down Asymmetric MAST-U Double Null")
+    fig, ax = plot_plasma(plasma, title="Up-down Asymmetric MAST-U Double Null")
     if savefig: fig.savefig(save_directory.joinpath("mastu_double_null.svg"))  
 
 def step_double_null(savefig: bool=True):
-    R, A, e, k, d, B0, Ip, qstar = step
-    r = np.linspace(1 - 1.2*e, 1 + 1.2*e, 51)
-    z = np.linspace(-1.2*e*k, 1.2*e*k, 51)
-    fig, ax = plot_plasma(DoubleNull(R, A, e, k, d, B0, Ip), r=r, z=z, title="STEP Double Null")
+    R, A, e, k, d, B0, Ip, _ = step
+    plasma = DoubleNull(R, A, e, k, d, B0, Ip)
+    fig, ax = plot_plasma(plasma, title="STEP Double Null")
     if savefig: fig.savefig(save_directory.joinpath("step_double_null.svg"))   
 
 def main():
