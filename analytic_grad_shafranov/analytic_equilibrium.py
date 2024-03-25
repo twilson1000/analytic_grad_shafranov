@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import scipy.constants as const
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 # Local imports
 
@@ -27,7 +27,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         "total_beta", "normalised_beta", "kink_safety_factor", "psi_axis", "magnetic_axis",
         "plasma_current_anticlockwise", "toroidal_field_anticlockwise",
 
-        "upper_point", "lower_point",
+        "upper_point", "lower_point", "boundary_radius", "boundary_height", "q_profile",
     )
 
     def __init__(
@@ -42,6 +42,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         kink_safety_factor: float = None,
         plasma_current_anticlockwise: bool = True,
         toroidal_field_anticlockwise: bool = True,
+        use_d_shaped_model: bool = False,
     ):
         '''
         Parameters
@@ -86,8 +87,14 @@ class AnalyticGradShafranovSolution(abc.ABC):
         # Solve for the weighting coefficients for each of the polynomials.
         self.calculate_coefficients()
         
+        # Calculate magnetic axis location.
+        self.calculate_magnetic_axis()
+
+        # Calculate (R, Z) of boundary contour.
+        self.calcuate_boundary_contour()
+
         # Calculate the normalised circumference and volume.
-        self.calculate_geometry_factors()
+        self.calculate_geometry_factors(use_d_shaped_model=use_d_shaped_model)
 
         # Use either the plasma current or kink safety factor to calculate the other.
         e, B0 = self.inverse_aspect_ratio, self.reference_magnetic_field_T
@@ -103,6 +110,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         # Set dummy value of psi axis. This will be set in calculate_metrics() to match the prescribed plasma current.
         self.psi_0 = 1.0
         self.calculate_metrics()
+        self.calculate_q_profile()
     
     @abc.abstractmethod
     def calculate_coefficients(self):
@@ -295,28 +303,91 @@ class AnalyticGradShafranovSolution(abc.ABC):
         xprime = -e * np.sin(theta + (alpha*np.sin(theta))) * (1 + alpha*np.cos(theta))
         yprime = e * k * np.cos(theta)
         return xprime, yprime
+    def calcuate_boundary_contour(self, n_points: int=101, psi_norm_threshold: float=1.0e-3, max_iterations: int=100):
+        ''' Calculate boundary contour of psi map using Newton's method '''
+        # Calculate the extremal value of psi so we can calculate psi norm.
+        psi_bar_0 = self.psi_bar(*self.magnetic_axis / self.major_radius_m)
+        
+        # Distort d shaped value such that psi=0.
+        theta = np.linspace(0, 2*np.pi, n_points)
+        x_d_shape, y_d_shape = self.d_shape_boundary(theta)
+        x_boundary, y_boundary = np.copy(x_d_shape), np.copy(y_d_shape)
+
+        for i, t in enumerate(theta):
+            for j in range(max_iterations):
+                psi_bar = self.psi_bar(x_boundary[i], y_boundary[i])
+                psi_norm = psi_bar / psi_bar_0
+
+                # If psi norm is close enough to zero, break.
+                if abs(psi_norm) < psi_norm_threshold:
+                    break
+                
+                # Use Netwon's method to update boundary position.
+                dpsi_dx = self.psi_bar_dx(x_boundary[i], y_boundary[i])
+                dpsi_dy = self.psi_bar_dy(x_boundary[i], y_boundary[i])
+                
+                cos_t, sin_t = np.cos(t), np.sin(t)
+                dpsi_dv = cos_t * dpsi_dx + sin_t * dpsi_dy
+
+                x_boundary[i] -= cos_t * psi_bar / dpsi_dv
+                y_boundary[i] -= sin_t * psi_bar / dpsi_dv
+        
+            if j == max_iterations - 1:
+                raise ValueError("Too many iterations to calculate boundary contour.")
+
+        self.boundary_radius = x_boundary * self.major_radius_m
+        self.boundary_height = y_boundary * self.major_radius_m
+    def calculate_magnetic_axis(self, tolerance: float=1.0e-4, max_iterations: int=100):
+        # Find value of psi on magnetic axis. Know it lies near (x, y) = (1, 0) so use Netwon's method to find where d(psi)/dx = 0 and d(psi)/dy = 0.
+        magnetic_axis = np.array([1.0, 0.0])
+        correction = np.zeros(2)
+
+        for i in range(max_iterations):
+            psi_dx = self.psi_bar_dx(*magnetic_axis)
+            psi_dy = self.psi_bar_dy(*magnetic_axis)
+            psi_dx2 = self.psi_bar_dx2(*magnetic_axis)
+            psi_dy2 = self.psi_bar_dy2(*magnetic_axis)
+
+            correction[:] = (psi_dx / psi_dx2), (psi_dy / psi_dy2)
+            magnetic_axis -= correction
+
+            if np.linalg.norm(correction) < tolerance:
+                logger.info(f"Found magnetic axis in {i+1} iterations.")
+                self.magnetic_axis = magnetic_axis * self.major_radius_m
+                break
+        
+        if i == max_iterations - 1:
+            logger.error(f"Failed to find magnetic axis within {max_iterations} iterations.")
+    @property
+    def shafranov_shift(self) -> float:
+        return self.magnetic_axis[0] - self.major_radius_m
     def calculate_geometry_factors(self, use_d_shaped_model: bool=True):
         '''
         Calculate the normalised circumference and volume of the plasma. Can either calculate based on the estimated
         boundary contour from the D shaped model or from the fitted poloidal flux function.
         '''
         if use_d_shaped_model:
-            theta = np.linspace(0, np.pi, 101)
+            theta = np.linspace(0, 2*np.pi, 101)
             x, y = self.d_shape_boundary(theta)
             xprime, yprime = self.d_shape_boundary_derivatives(theta)
             rprime = (xprime**2 + yprime**2)**0.5
 
-            self.normalised_circumference = 2 * np.trapz(rprime, theta)
-            self.normalised_volume = -2 * np.trapz(x*xprime*y, theta)
+            self.normalised_circumference = np.trapz(rprime, theta)
+            self.normalised_volume = -np.trapz(x*xprime*y, theta)
         else:
-            raise NotImplementedError("Normalised circumference not calculated.")
-            x, y = self.metric_computation_grid()
-            x_grid, ygrid = np.meshgrid(x, y, indexing='ij')
-            dxdy = (x[1] - x[0]) * (y[1] - y[0])
+            circumference = 0
+            volume = 0
 
-            psiN = self._psi_bar(x_grid, ygrid) * x_grid
-            mask = psiN > 0
-            self.normalised_volume = np.sum(mask) * dxdy
+            for dR, dZ in zip(np.diff(self.boundary_radius), np.diff(self.boundary_height)):
+                circumference += (dR**2 + dZ**2)**0.5
+            
+            for i in range(len(self.boundary_radius) - 1):
+                R1, Z1 = self.boundary_radius[i], self.boundary_height[i]
+                R2, Z2 = self.boundary_radius[i + 1], self.boundary_height[i + 1]
+                volume += 0.5 * (R1*Z1 + R2*Z2) * (R2 - R1)
+            
+            self.normalised_circumference = circumference / self.major_radius_m
+            self.normalised_volume = -volume / self.major_radius_m**3
     def metric_computation_grid(self) -> Tuple[npt.NDArray[float], npt.NDArray[float]]:
         '''
         Grid of normalised radius x = R / R0 and height y = Z / R0 used to calculate numerical integrals
@@ -368,35 +439,79 @@ class AnalyticGradShafranovSolution(abc.ABC):
         if not self.plasma_current_anticlockwise:
             self.psi_0 *= -1
 
-        # Find value of psi on magnetic axis. Know it lies on Z=0 so use Netwon's method to find where d(psi)/dx = 0.
-        magnetic_axis = np.array([1.0, 0.0])
-        correction = np.zeros(2)
-
-        max_iterations = 100
-        tol = 1e-4
-        for i in range(max_iterations):
-            psi_dx = self.psi_bar_dx(*magnetic_axis)
-            psi_dy = self.psi_bar_dy(*magnetic_axis)
-            psi_dx2 = self.psi_bar_dx2(*magnetic_axis)
-            psi_dy2 = self.psi_bar_dy2(*magnetic_axis)
-
-            correction[:] = (psi_dx / psi_dx2), (psi_dy / psi_dy2)
-            magnetic_axis -= correction
-
-            if np.linalg.norm(correction) < tol:
-                logger.info(f"Found magnetic axis in {i+1} iterations.")
-                self.magnetic_axis = magnetic_axis * self.major_radius_m
-                break
-        
-        if i == max_iterations - 1:
-            logger.error(f"Failed to find magnetic axis within {max_iterations} iterations.")
-
         # Evaluate value of psi_norm at the magnetic axis.
         self.psi_axis = self.psi(*self.magnetic_axis)
-    @property
-    def shafranov_shift(self) -> float:
-        return self.magnetic_axis[0] - self.major_radius_m
+    def calculate_q_profile(self, mesh_size: int=30):
+        R0 = self.major_radius_m
 
+        # The q profile q(psi) = 1/(2*pi) * int{F(psi) / (R |grad{psi}|)} dl_p where
+        # l_p is the poloidal distance along the surface of constant psi.
+        q_profile = np.zeros(mesh_size)
+
+        # Don't use psi_norm = 0 as zero size. Also skip psi_norm = 1 as we
+        # use the boundary contour instead which should be properly shaped
+        # when we have X points.
+        psi_norm_mesh = np.linspace(0, 1, mesh_size + 1)[1:-1]
+
+        # Calculate (x, y) locations of contours.
+        xmesh, ymesh = self.metric_computation_grid()
+        psi_bar_axis = self.psi_bar(*self.magnetic_axis / R0)
+        psi_norm_grid = self.psi_bar(*np.meshgrid(xmesh, ymesh, indexing='ij')) / psi_bar_axis
+        cs = plt.contour(xmesh, ymesh, psi_norm_grid.T, levels=psi_norm_mesh)
+
+        # Throw an error if the contour finding script fails.
+        if len(cs.collections) != mesh_size - 1:
+            raise ValueError("Unable to find contours for all psi norm mesh points.")
+        
+        # Clear matplotlib cache. NOTE: This might clear existing figures!
+        plt.close('all')
+
+        # This is
+        def integrand(x, y):
+            # Return 1 / (R |grad{psi}|). Technically we use use
+            # 1 / (x |grad_x,y{psi}|) but the factor of major radius cancels.
+            dpsi_dx = self.psi_0 * self.psi_bar_dx(x, y)
+            dpsi_dy = self.psi_0 * self.psi_bar_dy(x, y)
+            mod_grad_psi = (dpsi_dx**2 + dpsi_dy**2)**0.5
+            return 1 / (mod_grad_psi * x)
+        
+        def calculate_arclength(x, y):
+            # Calculate arclength around contour.
+            lp = np.zeros_like(x)
+            for k, (dx, dy) in enumerate(zip(np.diff(x), np.diff(y))):
+                lp[k + 1] = lp[k] + (dx**2 + dy**2)**0.5
+            
+            return lp
+
+        # NOTE: Contour set collections are in opposite order to levels values for some reason!
+        # So reverse the order of cs.collections to match the psi_norm value.
+        for i, (psi_norm, value_set) in enumerate(zip(psi_norm_mesh, cs.collections[::-1])):
+            # Integrate 1 / (R |grad{psi}|) over poloidal contour.
+            v = value_set.get_paths()[0].vertices
+            x, y = v[:, 0], v[:, 1]
+
+            # F function is a flux function so we can move it out the integral (F / R is toroidal field).
+            F = self.f_function(psi_norm)
+            
+            # Integrate using trapezium rule.
+            lp = R0 * calculate_arclength(x, y) # Poloidal arclength [m].
+            q_profile[i] = F * np.trapz(integrand(x, y), lp)
+        
+        # Use pre-computed boundary contour for separatrix. As there is a
+        # saddle point the matplotlib contours will sometimes follow the contours
+        # towards the divertor instead of following the high field side boundary.
+        x_bdy, y_bdy = self.boundary_radius / R0, self.boundary_height / R0
+
+        # Integrate using trapezium rule.
+        F = self.reference_magnetic_field_T * R0
+        lp = R0 * calculate_arclength(x_bdy, y_bdy) # Poloidal arclength [m].
+        q_profile[-1] = F * np.trapz(integrand(x_bdy, y_bdy), lp)
+        
+        # Scale q profile by 2*pi to match definition of poloidal flux function psi.
+        q_profile /= 2 * np.pi
+
+        # Set q profile.
+        self.q_profile = q_profile
     def psi_bar_to_psi_norm(self, psi_bar: float) -> float:
         ''' Convert psi_bar parameter used in the normalised Grad Shafranov equation to the standard normalised poloidal flux co-ordinate. '''
         return 1 - (psi_bar * self.psi_0 / self.psi_axis)
@@ -427,6 +542,116 @@ class AnalyticGradShafranovSolution(abc.ABC):
         x = R / R0
         R0, psi0, A = self.major_radius_m, self.psi_0, self.pressure_parameter
         return 1e-3 * psi0 * ((1 + A) * x**2 - A / x) / (const.mu_0 * R0**3)
+    def save_as_eqdsk(self, filename: str, rz_shape: Tuple[int, int]=None):
+        # 
+        if rz_shape is None:
+            rz_shape = (50, int(np.floor(50 * self.elongation)))
+        else:
+            if len(rz_shape) != 2:
+                raise ValueError("rz_shape must be 2 integers")
+            
+            rz_shape = tuple([int(x) for x in rz_shape])
+
+            for x in rz_shape:
+                if x <= 0:
+                    raise ValueError(f"rz_shape dimensions must be positive: {rz_shape}")
+
+        # Expand grid 5% beyond points used to constrain boundary.
+        e = self.inverse_aspect_ratio
+        rmin, rmax = (1 - 1.05*e) * self.major_radius_m, (1 + 1.05*e) * self.major_radius_m
+        zmin, zmax = 1.05 * self.lower_point[1], 1.05 * self.upper_point[1]
+
+        # Data.
+        _HEADER_VARIABLES = (
+            'rdim', 'zdim', 'rcentr', 'rleft', 'zmid', 'rmaxis', 'zmaxis', 'simag',
+            'sibry', 'bcentr', 'current', 'simag', 'xdum', 'rmaxis', 'xdum', 'zmaxis',
+            'xdum', 'sibry', 'xdum', 'xdum'
+        )
+        _ARRAY_VARIABLES = ('fpol', 'pres', 'ffprime', 'pprime', 'psirz', 'qpsi')
+
+        data_0d = {
+            'nw': rz_shape[0], # Number of radial points.
+            'nh': rz_shape[1], # Number of height points.
+            'rdim': rmax - rmin, # Range of radial mesh [m].
+            'zdim': zmax - zmin, # Range of height mesh [m].
+            'rcentr': self.major_radius_m, # Major radius [m].
+            'rleft': rmin, # Minimum value of radial mesh.
+            'zmid': 0.5 * (zmin + zmax), # Middle value of height mesh [m].
+            'rmaxis': self.magnetic_axis[0], # Radius of magnetic axis [m].
+            'zmaxis': self.magnetic_axis[1], # Height of magnetic axis [m].
+            'simag': self.psi_axis, # Psi value at magnetic axis [Wb].
+            'sibry': 0, # Psi value at separatrix / last closed flux surface [Wb].
+            'bcentr': self.reference_magnetic_field_T, # Vacuum toroidal magnetic field at major radius [T].
+            'current': self.plasma_current_MA * 1.0e6, # Total plasma current [A].
+            'xdum': 0, # Dummy value that is not used.
+            'idum': 0, # Dummy value that is not used.
+            'nbbbs': len(self.boundary_radius), # Number of points in boundary contour.
+            'limitr': 0, # Number of points in limiter contour. We don't provide this so set to 0.
+        }
+
+        # Psi array is same shape as radial mesh.
+        psi_norm = np.linspace(0, 1, rz_shape[0])
+        r, z = np.linspace(rmin, rmax, rz_shape[0]), np.linspace(zmin, zmax, rz_shape[1])
+        ffprime_const = -self.pressure_parameter * self.psi_0**2 / self.major_radius_m**2
+        pprime_const = (1 + self.pressure_parameter) * self.psi_0**2 / self.major_radius_m**4 / const.mu_0
+        
+        # Interpolate safety factor onto desired values.
+        qpsi = np.interp(psi_norm, np.linspace(0, 1, len(self.q_profile) + 1)[1:], self.q_profile)
+
+        data_1d = {
+            'fpol': self.f_function(psi_norm),
+            'pres': 1.0e3 * self.pressure_kPa(psi_norm),
+            'ffprime': ffprime_const * np.ones_like(psi_norm),
+            'pprime': pprime_const * np.ones_like(psi_norm),
+            'psirz': self.psi(*np.meshgrid(r, z, indexing='ij')),
+            'qpsi': qpsi,
+        }
+
+        # Format strings for data.
+        _ENTRIES_PER_LINE = 5
+        _VALUE_FORMAT = "{:16.9e}"
+        _INTEGER_FORMAT_1 = "{:4.0f}"
+        _INTEGER_FORMAT_2 = " {:.0f}"
+        _COMMENT_FORMAT = "{:>48}"
+
+        def format_lines(data: npt.NDArray[float]) -> List[str]:
+            str_values = [_VALUE_FORMAT.format(x) for x in data]
+            folded_values = [str_values[i:i + _ENTRIES_PER_LINE] for i in range(0, len(str_values), _ENTRIES_PER_LINE)]
+            lines = [''.join(value_set) for value_set in folded_values]
+            return lines
+
+        # List of lines to write to text file.
+        file_lines = []
+
+        # First line containing comment and array sizes.
+        comment = _COMMENT_FORMAT.format("Analytic Grad Shafranov Solution")
+        sizes = sizes = "".join([_INTEGER_FORMAT_1.format(data_0d[variable_name]) for variable_name in ('idum', 'nw', 'nh')])
+        file_lines.append(comment + sizes)
+
+        # 0D variables.
+        file_lines.extend(
+            format_lines([data_0d[name] for name in _HEADER_VARIABLES])
+        )
+
+        # 1D variables.
+        for name in _ARRAY_VARIABLES:
+            logger.info(f"Writing {name} ({data_1d[name].shape})")
+            file_lines.extend(
+                format_lines(data_1d[name].flatten())
+            )
+
+        # Size of boundary and limiter contours.
+        boundary_size = _INTEGER_FORMAT_2.format(data_0d['nbbbs'])
+        limiter_size = _INTEGER_FORMAT_2.format(data_0d['limitr'])
+        file_lines.append(boundary_size + limiter_size)
+
+        # Boundary contour data. There is no limiter contour data.
+        boundary_data = np.vstack((self.boundary_radius, self.boundary_height)).T.flatten()
+        file_lines.extend(format_lines(boundary_data))
+
+        logger.info(f"Writing EQDSK to {filename}")
+        with open(filename, "w") as writefile:
+            writefile.write("\n".join(file_lines))
 
 class Limiter(AnalyticGradShafranovSolution):
     __slots__ = ()
