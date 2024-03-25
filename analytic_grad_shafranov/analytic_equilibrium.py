@@ -355,8 +355,9 @@ class AnalyticGradShafranovSolution:
     def magnetic_field(self, R: float, Z: float) -> Tuple[float, float, float]:
         ''' (R, phi, Z) components of the magnetic field [T]. '''
         psi_norm = self.psi_norm(R, Z)
-        B_R = -self.psi_dZ(R, Z) / R
-        B_Z = self.psi_dR(R, Z) / R
+        # NOTE: Need a test for this!
+        B_R = self.psi_dZ(R, Z) / R
+        B_Z = -self.psi_dR(R, Z) / R
         B_toroidal = self.f_function(psi_norm) / R
 
         return B_R, B_toroidal, B_Z
