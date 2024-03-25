@@ -1092,8 +1092,8 @@ class UpDownAsymmetric(SingleNull):
         N2_mid = (1 - alpha_mid)**2 / e / k_mid**2
 
         # Points to fit D shaped model at.
-        eq_inner = 1 - e, self.midplane_y
-        eq_outer = 1 + e, self.midplane_y
+        eq_inner = (1 - e, 0)
+        eq_outer = (1 + e, 0)
         
         # We solve the system y = Mx to find the coefficient vector x.
         M = np.zeros((12, 12))
