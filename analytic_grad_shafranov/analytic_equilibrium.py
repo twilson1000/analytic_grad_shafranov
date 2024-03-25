@@ -564,6 +564,13 @@ class AnalyticGradShafranovSolution(abc.ABC):
         x = R / R0
         R0, psi0, A = self.major_radius_m, self.psi_0, self.pressure_parameter
         return 1e-3 * psi0 * ((1 + A) * x**2 - A / x) / (const.mu_0 * R0**3)
+    def plotting_xy_grid(self, padding=1.05, n_points: int=100):
+        ''' Grid of (x, y) points that encloses entire plasma boundary plus some padding '''
+        e = self.inverse_aspect_ratio
+        xmin, xmax = (1 - padding*e), (1 + padding*e)
+        ymin, ymax = padding * self.lower_point[1], padding * self.upper_point[1]
+
+        return np.linspace(xmin, xmax, n_points), np.linspace(ymin, ymax, n_points)
     def save_as_eqdsk(self, filename: str, rz_shape: Tuple[int, int]=None):
         # Default shape tries to have equal grid point spacing in R and Z with a 50 point radial mesh.
         if rz_shape is None:
@@ -578,10 +585,13 @@ class AnalyticGradShafranovSolution(abc.ABC):
                 if x <= 0:
                     raise ValueError(f"rz_shape dimensions must be positive: {rz_shape}")
 
-        # Expand grid 5% beyond points used to constrain boundary.
-        e = self.inverse_aspect_ratio
-        rmin, rmax = (1 - 1.05*e) * self.major_radius_m, (1 + 1.05*e) * self.major_radius_m
-        zmin, zmax = 1.05 * self.lower_point[1], 1.05 * self.upper_point[1]
+        # R, Z grid.
+        x_plot, y_plot = self.plotting_xy_grid()
+        r = np.linspace(x_plot[0], x_plot[-1], rz_shape[0]) * self.major_radius_m
+        z = np.linspace(y_plot[0], y_plot[-1], rz_shape[1]) * self.major_radius_m
+
+        rmin, rmax = r[0], r[-1]
+        zmin, zmax = z[0], z[-1]
 
         # Data.
         _HEADER_VARIABLES = (
@@ -613,7 +623,6 @@ class AnalyticGradShafranovSolution(abc.ABC):
 
         # Psi array is same shape as radial mesh.
         psi_norm = np.linspace(0, 1, rz_shape[0])
-        r, z = np.linspace(rmin, rmax, rz_shape[0]), np.linspace(zmin, zmax, rz_shape[1])
         ffprime_const = -self.pressure_parameter * self.psi_0**2 / self.major_radius_m**2
         pprime_const = (1 + self.pressure_parameter) * self.psi_0**2 / self.major_radius_m**4 / const.mu_0
         
@@ -674,7 +683,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         logger.info(f"Writing EQDSK to {filename}")
         with open(filename, "w") as writefile:
             writefile.write("\n".join(file_lines))
-
+    
 class Limiter(AnalyticGradShafranovSolution):
     __slots__ = ()
 
@@ -1043,13 +1052,13 @@ class UpDownAsymmetric(SingleNull):
         k, d = self.elongation[0], self.triangularity[0]
         alpha = np.arcsin(d)
         x[mask] = 1 + e * np.cos(theta[mask] + alpha*np.sin(theta[mask]))
-        y[mask] = self.midplane_y + e * k * np.sin(theta[mask])
+        y[mask] = e * k * np.sin(theta[mask])
 
         # Below midplane.
         k, d = self.elongation[1], self.triangularity[1]
         alpha = np.arcsin(d)
         x[~mask] = 1 + e * np.cos(theta[~mask] + alpha*np.sin(theta[~mask]))
-        y[~mask] = self.midplane_y + e * k * np.sin(theta[~mask])
+        y[~mask] = e * k * np.sin(theta[~mask])
 
         return x, y
     def d_shape_boundary_derivatives(self, theta: float) -> float:
