@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 # Standard imports
-import abc
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -49,7 +48,7 @@ class ExtremalPoint:
     def x_point(self) -> float:
         return self._x_point
 
-class AnalyticGradShafranovSolution(abc.ABC):
+class AnalyticGradShafranovSolution:
     '''
     Analytic solutions to the Grad Shafranov equation as described in 'Antoine J. Cerfon, Jeffrey P. Freidberg;
     “One size fits all” analytic solutions to the Grad–Shafranov equation. Phys. Plasmas 1 March 2010; 17 (3): 032502.'.
@@ -896,478 +895,105 @@ class AnalyticGradShafranovSolution(abc.ABC):
 class Limiter(AnalyticGradShafranovSolution):
     __slots__ = ()
 
-    def calculate_coefficients(self):
-        '''
-        Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
-        required geometry factors at 3 points:
-            Inner equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
-            Outer equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
-            High point: point of maximum Z on the boundary contour.
-        '''
-        e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
-        
-        # Some coefficients from D shaped model.
-        alpha = np.arcsin(d)
-        N1 = - (1 + alpha)**2 / e / k**2
-        N2 = (1 - alpha)**2 / e / k**2
-        N3 = -k / e / (1 - d**2)
-
-        # Points to fit D shaped model at.
-        eq_inner = (1 - e, 0)
-        eq_outer = (1 + e, 0)
-        self.upper_point = (1 - d*e, k*e)
-        self.lower_point = (1 - d*e, -k*e)
-
-        # We solve the system y = Mx to find the coefficient vector x.
-        M = np.zeros((7, 7))
-        y = np.zeros(7)
-
-        # Outer equatorial point (psi = 0).
-        M[0] = self.psi_homogenous(*eq_outer)
-        y[0] = -self.psi_particular(*eq_outer)
-
-        # Inner equatorial point (psi = 0).
-        M[1] = self.psi_homogenous(*eq_inner)
-        y[1] = -self.psi_particular(*eq_inner)
-
-        # High point (psi = 0).
-        M[2] = self.psi_homogenous(*self.upper_point)
-        y[2] = -self.psi_particular(*self.upper_point)
-
-        # High point maximum (d(psi)/dx = 0).
-        M[3] = self.psi_homogenous_dx(*self.upper_point)
-        y[3] = -self.psi_particular_dx(*self.upper_point)
-
-        # Outer equatorial point curvature (d^2(psi)/dy^2 + N1 * d(psi)/dx = 0).
-        M[4] = np.array(self.psi_homogenous_dy2(*eq_outer)) + N1 * np.array(self.psi_homogenous_dx(*eq_outer))
-        y[4] = -N1 * self.psi_particular_dx(*eq_outer)
-
-        # Inner equatorial point curvature (d^2(psi)/dy^2 + N2 * d(psi)/dx = 0).
-        M[5] = np.array(self.psi_homogenous_dy2(*eq_inner)) + N2 * np.array(self.psi_homogenous_dx(*eq_inner))
-        y[5] = -N2 * self.psi_particular_dx(*eq_inner)
-
-        # High point curvature (d^2(psi)/dx^2 + N3 * d(psi)/dy = 0).
-        M[6] = np.array(self.psi_homogenous_dx2(*self.upper_point)) + N3 * np.array(self.psi_homogenous_dy(*self.upper_point))
-        y[6] = -self.psi_particular_dx2(*self.upper_point)
-
-        self.coefficients = np.linalg.solve(M, y)
+    def __init__(
+        self,
+        major_radius_m: float,
+        pressure_parameter: float,
+        inverse_aspect_ratio: float,
+        elongation: float,
+        triangularity: float,
+        reference_magnetic_field_T: float,
+        plasma_current_MA: float,
+        kink_safety_factor: float = None,
+        plasma_current_anticlockwise: bool = True,
+        toroidal_field_anticlockwise: bool = True,
+        use_d_shaped_model: bool = False
+    ):
+        upper_point = ExtremalPoint(elongation, triangularity, False)
+        lower_point = upper_point
+        super().__init__(
+            major_radius_m,
+            pressure_parameter,
+            inverse_aspect_ratio,
+            upper_point,
+            lower_point,
+            reference_magnetic_field_T,
+            plasma_current_MA,
+            kink_safety_factor,
+            plasma_current_anticlockwise,
+            toroidal_field_anticlockwise,
+            use_d_shaped_model
+        )
 
 class DoubleNull(AnalyticGradShafranovSolution):
     __slots__ = ()
-
-    def calculate_coefficients(self):
-        '''
-        Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
-        required geometry factors at 3 points:
-            Inner equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
-            Outer equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
-            Upper X point: point of maximum Z on the boundary contour.
-        '''
-        e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
-
-        # Some coefficients from D shaped model.
-        alpha = np.arcsin(d)
-        N1 = - (1 + alpha)**2 / e / k**2
-        N2 = (1 - alpha)**2 / e / k**2
-
-        # Points to fit D shaped model at.
-        eq_inner = (1 - e, 0)
-        eq_outer = (1 + e, 0)
-        self.upper_point = (1 - 1.1*d*e, 1.1*k*e)
-        self.lower_point = (1 - 1.1*d*e, -1.1*k*e)
-
-        # We solve the system y = Mx to find the coefficient vector x.
-        M = np.zeros((7, 7))
-        y = np.zeros(7)
-
-        # Outer equatorial point (psi = 0).
-        M[0] = self.psi_homogenous(*eq_outer)
-        y[0] = -self.psi_particular(*eq_outer)
-
-        # Inner equatorial point (psi = 0).
-        M[1] = self.psi_homogenous(*eq_inner)
-        y[1] = -self.psi_particular(*eq_inner)
-
-        # Outer equatorial point curvature (d^2(psi)/dy^2 + N1 * d(psi)/dx = 0).
-        M[2] = np.array(self.psi_homogenous_dy2(*eq_outer)) + N1 * np.array(self.psi_homogenous_dx(*eq_outer))
-        y[2] = -N1 * self.psi_particular_dx(*eq_outer)
-
-        # Inner equatorial point curvature (d^2(psi)/dy^2 + N2 * d(psi)/dx = 0).
-        M[3] = np.array(self.psi_homogenous_dy2(*eq_inner)) + N2 * np.array(self.psi_homogenous_dx(*eq_inner))
-        y[3] = -N2 * self.psi_particular_dx(*eq_inner)
-
-        # X point (psi = 0).
-        M[4] = self.psi_homogenous(*self.upper_point)
-        y[4] = -self.psi_particular(*self.upper_point)
-
-        # B poloidal = 0 at X point (d(psi)/dx = 0).
-        M[5] = self.psi_homogenous_dx(*self.upper_point)
-        y[5] = -self.psi_particular_dx(*self.upper_point)
-
-        # B poloidal = 0 at X point (d(psi)/dy = 0).
-        M[6] = self.psi_homogenous_dy(*self.upper_point)
-
-        self.coefficients = np.linalg.solve(M, y)
-    def metric_computation_grid(self):
-        e, k = self.inverse_aspect_ratio, self.elongation
-        x = np.linspace(1 - e, 1 + e, 100)
-        y = np.linspace(-1.1*e*k, 1.1*e*k, 101)
-        return x, y
-
-class SingleNull(AnalyticGradShafranovSolution):
-    __slots__ = ()
-
-    @staticmethod
-    def psi_homogenous(x: float, y: float):
-        '''
-        12 homogenous solutions of the normalised Grad-Shafranov equation expanded up to order x^6 and y^6.
-        x = R / R0 and y = Z / R0 are the radius R and height Z normalised to the major radius R0. Solutions which
-        are odd in y are also now included.
-        '''
-        x2, y2, ln_x = x**2, y**2, np.log(x)
-        x4 = x2**2
-
-        p1, p2, p3, p4, p5, p6, p7 = AnalyticGradShafranovSolution.psi_homogenous(x, y)
-        p8 = y
-        p9 = y*x2
-        p10 = y * (y2 - 3*x2*ln_x)
-        p11 = y * (3*x4 - 4*y2*x2)
-        p12 = y * ((8*y2 - 80*x2*ln_x)*y2 + (60*ln_x - 45)*x4)
-
-        return p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12
-    @staticmethod
-    def psi_homogenous_dx(x: float, y: float):
-        ''' First derivative of the homogeneous polynomials with respect to x. '''
-        x2, y2, ln_x = x**2, y**2, np.log(x)
-
-        dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx = AnalyticGradShafranovSolution.psi_homogenous_dx(x, y)
-        dp8_dx = 0
-        dp9_dx = 2*x*y
-        dp10_dx = -3*x*y*(2*ln_x + 1)
-        dp11_dx = x*y*(12*x2 - 8*y2)
-        dp12_dx = 40*x*y*((6*x2 - 4*y2)*ln_x - 3*x2 - 2*y2)
-
-        return dp1_dx, dp2_dx, dp3_dx, dp4_dx, dp5_dx, dp6_dx, dp7_dx, dp8_dx, dp9_dx, dp10_dx, dp11_dx, dp12_dx
-    @staticmethod
-    def psi_homogenous_dx2(x: float, y: float):
-        ''' Second derivative of the homogeneous polynomials with respect to x. '''
-        x2, y2, ln_x = x**2, y**2, np.log(x)
-
-        d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2 = AnalyticGradShafranovSolution.psi_homogenous_dx2(x, y)
-        d2p8_dx2 = 0
-        d2p9_dx2 = 2*y
-        d2p10_dx2 = -3*y*(2*ln_x + 3)
-        d2p11_dx2 = y*(36*x2 - 8*y2)
-        d2p12_dx2 = y*((720*x2 - 160*y2)*ln_x - 120*x2-240*y2)
-
-        return d2p1_dx2, d2p2_dx2, d2p3_dx2, d2p4_dx2, d2p5_dx2, d2p6_dx2, d2p7_dx2, d2p8_dx2, d2p9_dx2, d2p10_dx2, d2p11_dx2, d2p12_dx2
-    @staticmethod
-    def psi_homogenous_dy(x: float, y: float):
-        ''' First derivative of the homogeneous polynomials with respect to y. '''
-        x2, y2, ln_x = x**2, y**2, np.log(x)
-        y4 = y2**2
-
-        dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy = AnalyticGradShafranovSolution.psi_homogenous_dy(x, y)
-        dp8_dy = 1
-        dp9_dy = x2
-        dp10_dy = 3*(y2 - x2*ln_x)
-        dp11_dy = x2*(3*x2 - 12*y2)
-        dp12_dy = 40*y4 + 15*x2*((-16*y2 + 4*x2)*ln_x - 3*x2)
-
-        return dp1_dy, dp2_dy, dp3_dy, dp4_dy, dp5_dy, dp6_dy, dp7_dy, dp8_dy, dp9_dy, dp10_dy, dp11_dy, dp12_dy
-    @staticmethod
-    def psi_homogenous_dy2(x: float, y: float):
-        ''' Second derivative of the homogeneous polynomials with respect to y. '''
-        x2, y2, ln_x = x**2, y**2, np.log(x)
-
-        d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2 = AnalyticGradShafranovSolution.psi_homogenous_dy2(x, y)
-        d2p8_dy2 = 0
-        d2p9_dy2 = 0
-        d2p10_dy2 = 6*y
-        d2p11_dy2 = -24*x2*y
-        d2p12_dy2 = y*(160*y2- 480*x2*ln_x)
-
-        return d2p1_dy2, d2p2_dy2, d2p3_dy2, d2p4_dy2, d2p5_dy2, d2p6_dy2, d2p7_dy2, d2p8_dy2, d2p9_dy2, d2p10_dy2, d2p11_dy2, d2p12_dy2
-    def calculate_coefficients(self):
-        '''
-        Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
-        required geometry factors at 3 points:
-            Inner equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
-            Outer equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
-            High point: point of maximum Z on the boundary contour.
-            Upper X point: point of maximum Z on the boundary contour.
-        '''
-        e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
-
-        # Some coefficients from D shaped model.
-        alpha = np.arcsin(d)
-        N1 = - (1 + alpha)**2 / e / k**2
-        N2 = (1 - alpha)**2 / e / k**2
-        N3 = -k / e / (1 - d**2)
-
-        # Points to fit D shaped model at.
-        eq_inner = (1 - e, 0)
-        eq_outer = (1 + e, 0)
-        self.upper_point = (1 - d*e, k*e)
-        self.lower_point = (1 - 1.1*d*e, -1.1*k*e)
-
-        # We solve the system y = Mx to find the coefficient vector x.
-        M = np.zeros((12, 12))
-        y = np.zeros(12)
-
-        # Outer equatorial point (psi = 0).
-        M[0] = self.psi_homogenous(*eq_outer)
-        y[0] = -self.psi_particular(*eq_outer)
-
-        # Inner equatorial point (psi = 0).
-        M[1] = self.psi_homogenous(*eq_inner)
-        y[1] = -self.psi_particular(*eq_inner)
-
-        # Upper high point (psi = 0).
-        M[2] = self.psi_homogenous(*self.upper_point)
-        y[2] = -self.psi_particular(*self.upper_point)
-
-        # Lower X point (psi = 0).
-        M[3] = self.psi_homogenous(*self.lower_point)
-        y[3] = -self.psi_particular(*self.lower_point)
-
-        # Outer equatorial point up down symmetry (d(psi)/dy = 0).
-        M[4] = self.psi_homogenous_dy(*eq_outer)
-
-        # Inner equatorial point up down symmetry (d(psi)/dy = 0).
-        M[5] = self.psi_homogenous_dy(*eq_inner)
-
-        # Upper high point maximum (d(psi)/dx = 0).
-        M[6] = self.psi_homogenous_dx(*self.upper_point)
-        y[6] = -self.psi_particular_dx(*self.upper_point)
-
-        # B poloidal = 0 at lower X point (d(psi)/dx = 0)).
-        M[7] = self.psi_homogenous_dx(*self.lower_point)
-        y[7] = -self.psi_particular_dx(*self.lower_point)
-
-        # B poloidal = 0 at lower X point (d(psi)/dy = 0).
-        M[8] = self.psi_homogenous_dy(*self.lower_point)
-
-        # Outer equatorial point curvature (d^2(psi)/dy^2 + N1 * d(psi)/dx = 0).
-        M[9] = np.array(self.psi_homogenous_dy2(*eq_outer)) + N1 * np.array(self.psi_homogenous_dx(*eq_outer))
-        y[9] = -N1 * self.psi_particular_dx(*eq_outer)
-
-        # Inner equatorial point curvature (d^2(psi)/dy^2 + N2 * d(psi)/dx = 0).
-        M[10] = np.array(self.psi_homogenous_dy2(*eq_inner)) + N2 * np.array(self.psi_homogenous_dx(*eq_inner))
-        y[10] = -N2 * self.psi_particular_dx(*eq_inner)
-
-        # High point curvature (d^2(psi)/dx^2 + N3 * d(psi)/dy = 0).
-        M[11] = np.array(self.psi_homogenous_dx2(*self.upper_point)) + N3 * np.array(self.psi_homogenous_dy(*self.upper_point))
-        y[11] = -self.psi_particular_dx2(*self.upper_point)
-
-        self.coefficients = np.linalg.solve(M, y)
-    def metric_computation_grid(self):
-        e, k = self.inverse_aspect_ratio, self.elongation
-        x = np.linspace(1 - e, 1 + e, 100)
-        y = np.linspace(-1.1*e*k, e*k, 101)
-        return x, y
-        
-class UpDownAsymmetric(SingleNull):
-    __slots__ = ("upper_point_object", "lower_point_object", "midplane_y")
 
     def __init__(
         self,
         major_radius_m: float,
         pressure_parameter: float,
         inverse_aspect_ratio: float,
-        upper_point: ExtremalPoint,
-        lower_point: ExtremalPoint,
+        elongation: float,
+        triangularity: float,
         reference_magnetic_field_T: float,
         plasma_current_MA: float,
         kink_safety_factor: float = None,
         plasma_current_anticlockwise: bool = True,
         toroidal_field_anticlockwise: bool = True,
+        use_d_shaped_model: bool = False
     ):
-        if not isinstance(upper_point, ExtremalPoint):
-            raise ValueError("upper_point must be ExtremalPoint")
-        if not isinstance(lower_point, ExtremalPoint):
-            raise ValueError("lower_point must be ExtremalPoint")
-        
-        self.upper_point_object = upper_point
-        self.lower_point_object = lower_point
-
-        # Set upper and lower elongation and triangularity.
-        elongation = (upper_point.elongation, lower_point.elongation,)
-        triangularity = (upper_point.triangularity, lower_point.triangularity,)
+        upper_point = ExtremalPoint(elongation, triangularity, True)
+        lower_point = upper_point
 
         super().__init__(
             major_radius_m,
             pressure_parameter,
             inverse_aspect_ratio,
-            elongation,
-            triangularity,
+            upper_point,
+            lower_point,
             reference_magnetic_field_T,
             plasma_current_MA,
-            kink_safety_factor=kink_safety_factor,
-            plasma_current_anticlockwise=plasma_current_anticlockwise,
-            toroidal_field_anticlockwise=toroidal_field_anticlockwise,
+            kink_safety_factor,
+            plasma_current_anticlockwise,
+            toroidal_field_anticlockwise,
+            use_d_shaped_model
         )
-    
-    def d_shape_boundary(self, theta: float) -> float:
-        ''' D shaped boundary contour for the prescribed geometry factors. '''
-        theta = np.array(theta)
-        x, y = np.zeros_like(theta), np.zeros_like(theta)
-        mask = np.logical_and(theta >= 0, theta <= np.pi)
 
-        e = self.inverse_aspect_ratio  
+class SingleNull(AnalyticGradShafranovSolution):
+    __slots__ = ()
 
-        # Above midplane.
-        k, d = self.elongation[0], self.triangularity[0]
-        alpha = np.arcsin(d)
-        x[mask] = 1 + e * np.cos(theta[mask] + alpha*np.sin(theta[mask]))
-        y[mask] = e * k * np.sin(theta[mask])
-
-        # Below midplane.
-        k, d = self.elongation[1], self.triangularity[1]
-        alpha = np.arcsin(d)
-        x[~mask] = 1 + e * np.cos(theta[~mask] + alpha*np.sin(theta[~mask]))
-        y[~mask] = e * k * np.sin(theta[~mask])
-
-        return x, y
-    def d_shape_boundary_derivatives(self, theta: float) -> float:
-        theta = np.array(theta)
-        xprime, yprime = np.zeros_like(theta), np.zeros_like(theta)
-        mask = np.logical_and(theta >= 0, theta <= np.pi)
-
-        e = self.inverse_aspect_ratio  
-
-        # Above midplane.
-        k, d = self.elongation[0], self.triangularity[0]
-        alpha = np.arcsin(d)
-        xprime[mask] = -e * np.sin(theta[mask] + (alpha*np.sin(theta[mask]))) * (1 + alpha*np.cos(theta[mask]))
-        yprime[mask] = e * k * np.cos(theta[mask])
-
-        # Below midplane.
-        k, d = self.elongation[1], self.triangularity[1]
-        alpha = np.arcsin(d)
-        xprime[~mask] = -e * np.sin(theta[~mask] + (alpha*np.sin(theta[~mask]))) * (1 + alpha*np.cos(theta[~mask]))
-        yprime[~mask] = e * k * np.cos(theta[~mask])
-
-        return xprime, yprime
-    def calculate_coefficients(self):
-        '''
-        Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
-        required geometry factors at 3 points:
-            Inner equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
-            Outer equatorial point: point of minimum R at midplane (Z=0) on the boundary contour.
-            High point: point of maximum Z on the boundary contour.
-            Upper X point: point of maximum Z on the boundary contour.
-        '''
-        e = self.inverse_aspect_ratio
-
-        # Some coefficients from D shaped model. Use average elongation and triangularity at midplane.
-        
-        k_mid = 0.5 * sum(self.elongation)
-        d_mid = 0.5 * sum(self.triangularity)
-        alpha_mid = np.arcsin(d_mid)
-        N1_mid = - (1 + alpha_mid)**2 / e / k_mid**2
-        N2_mid = (1 - alpha_mid)**2 / e / k_mid**2
-
-        # Points to fit D shaped model at.
-        eq_inner = (1 - e, 0)
-        eq_outer = (1 + e, 0)
-        
-        # We solve the system y = Mx to find the coefficient vector x.
-        M = np.zeros((12, 12))
-        y = np.zeros(12)
-
-        # Outer equatorial point (psi = 0).
-        M[0] = self.psi_homogenous(*eq_outer)
-        y[0] = -self.psi_particular(*eq_outer)
-
-        # Inner equatorial point (psi = 0).
-        M[1] = self.psi_homogenous(*eq_inner)
-        y[1] = -self.psi_particular(*eq_inner)
-
-        # Outer equatorial point up down symmetry (d(psi)/dy = 0).
-        M[2] = self.psi_homogenous_dy(*eq_outer)
-
-        # Inner equatorial point up down symmetry (d(psi)/dy = 0).
-        M[3] = self.psi_homogenous_dy(*eq_inner)
-
-        # Outer equatorial point curvature (d^2(psi)/dy^2 + N1 * d(psi)/dx = 0).
-        M[4] = np.array(self.psi_homogenous_dy2(*eq_outer)) + N1_mid * np.array(self.psi_homogenous_dx(*eq_outer))
-        y[4] = -N1_mid * self.psi_particular_dx(*eq_outer)
-
-        # Inner equatorial point curvature (d^2(psi)/dy^2 + N2 * d(psi)/dx = 0).
-        M[5] = np.array(self.psi_homogenous_dy2(*eq_inner)) + N2_mid * np.array(self.psi_homogenous_dx(*eq_inner))
-        y[5] = -N2_mid * self.psi_particular_dx(*eq_inner)
-
-        if self.upper_point_object.x_point:
-            k, d = self.elongation[0], self.triangularity[0]
-            self.upper_point = (1 - 1.1*d*e, 1.1*k*e)
-
-            # Upper X point (psi = 0).
-            M[6] = self.psi_homogenous(*self.upper_point)
-            y[6] = -self.psi_particular(*self.upper_point)
-
-            # B poloidal = 0 at upper X point (d(psi)/dx = 0).
-            M[7] = self.psi_homogenous_dx(*self.upper_point)
-            y[7] = -self.psi_particular_dx(*self.upper_point)
-
-            # B poloidal = 0 at upper X point (d(psi)/dy = 0).
-            M[8] = self.psi_homogenous_dy(*self.upper_point)
+    def __init__(
+        self,
+        major_radius_m: float,
+        pressure_parameter: float,
+        inverse_aspect_ratio: float,
+        elongation: float,
+        triangularity: float,
+        reference_magnetic_field_T: float,
+        plasma_current_MA: float,
+        kink_safety_factor: float = None,
+        plasma_current_anticlockwise: bool = True,
+        toroidal_field_anticlockwise: bool = True,
+        use_d_shaped_model: bool = False,
+        lower_x: bool = True,
+    ):
+        if lower_x:
+            upper_point = ExtremalPoint(elongation, triangularity, False)
+            lower_point = ExtremalPoint(elongation, triangularity, True)
         else:
-            # Upper high point.
-            k, d = self.elongation[0], self.triangularity[0]
-            N3 = -k / e / (1 - d**2)
+            upper_point = ExtremalPoint(elongation, triangularity, True)
+            lower_point = ExtremalPoint(elongation, triangularity, False)
 
-            self.upper_point = (1 - d*e, k*e)
-
-            # Upper high point (psi = 0).
-            M[6] = self.psi_homogenous(*self.upper_point)
-            y[6] = -self.psi_particular(*self.upper_point)
-
-            # Upper high point maximum (d(psi)/dx = 0).
-            M[7] = self.psi_homogenous_dx(*self.upper_point)
-            y[7] = -self.psi_particular_dx(*self.upper_point)
-
-            # Upper high point curvature (d^2(psi)/dx^2 + N3 * d(psi)/dy = 0).
-            M[8] = np.array(self.psi_homogenous_dx2(*self.upper_point)) + N3 * np.array(self.psi_homogenous_dy(*self.upper_point))
-            y[8] = -self.psi_particular_dx2(*self.upper_point)
-
-        if self.lower_point_object.x_point:
-            k, d = self.elongation[1], self.triangularity[1]
-            self.lower_point = (1 - 1.1*d*e, -1.1*k*e)
-
-            # Lower X point (psi = 0).
-            M[9] = self.psi_homogenous(*self.lower_point)
-            y[9] = -self.psi_particular(*self.lower_point)
-
-            # B poloidal = 0 at lower X point (d(psi)/dx = 0).
-            M[10] = self.psi_homogenous_dx(*self.lower_point)
-            y[10] = -self.psi_particular_dx(*self.lower_point)
-
-            # B poloidal = 0 at lower X point (d(psi)/dy = 0).
-            M[11] = self.psi_homogenous_dy(*self.lower_point)
-        else:
-            # Lower high point.
-            k, d = self.elongation[1], self.triangularity[1]
-            N3 = -k / e / (1 - d**2)
-
-            self.lower_point = (1 - d*e, -k*e)
-
-            # Lower high point (psi = 0).
-            M[9] = self.psi_homogenous(*self.lower_point)
-            y[9] = -self.psi_particular(*self.lower_point)
-
-            # Lower high point maximum (d(psi)/dx = 0).
-            M[10] = self.psi_homogenous_dx(*self.lower_point)
-            y[10] = -self.psi_particular_dx(*self.lower_point)
-
-            # Lower high point curvature (d^2(psi)/dx^2 + N3 * d(psi)/dy = 0).
-            M[11] = np.array(self.psi_homogenous_dx2(*self.lower_point)) - N3 * np.array(self.psi_homogenous_dy(*self.lower_point))
-            y[11] = -self.psi_particular_dx2(*self.lower_point)
-
-        self.coefficients = np.linalg.solve(M, y)
-
-    def metric_computation_grid(self):
-        e = self.inverse_aspect_ratio
-        x = np.linspace(1 - e, 1 + e, 100)
-        y = np.linspace(self.lower_point[1], self.upper_point[1], 101)
-        return x, y
+        super().__init__(
+            major_radius_m,
+            pressure_parameter,
+            inverse_aspect_ratio,
+            upper_point,
+            lower_point,
+            reference_magnetic_field_T,
+            plasma_current_MA,
+            kink_safety_factor,
+            plasma_current_anticlockwise,
+            toroidal_field_anticlockwise,
+            use_d_shaped_model
+        )
