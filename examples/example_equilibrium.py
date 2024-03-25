@@ -152,9 +152,9 @@ def mastu_double_null_up_down_asymmetric(savefig: bool=True):
     R, A, e, k, d, B0, Ip, _ = mast_u
 
     # Upper triangularity is 5% higher.
-    upper_x = ExtremalPoint(e, 1.05*k, True)
-    lower_x = ExtremalPoint(e, k, True)
-    plasma = AnalyticGradShafranovSolution(R, A, upper_x, lower_x, d, B0, Ip)
+    upper_x = ExtremalPoint(k, 1.05*d, True)
+    lower_x = ExtremalPoint(k, d, True)
+    plasma = AnalyticGradShafranovSolution(R, A, e, upper_x, lower_x, B0, Ip)
 
     fig, ax = plot_plasma(plasma, title="Up-down Asymmetric MAST-U Double Null")
     if savefig: fig.savefig(save_directory.joinpath("mastu_double_null.svg"))  
