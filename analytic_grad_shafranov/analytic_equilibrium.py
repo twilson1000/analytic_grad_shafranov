@@ -778,7 +778,7 @@ class AnalyticGradShafranovSolution:
     def save_as_eqdsk(self, filename: str, rz_shape: Tuple[int, int]=None):
         # Default shape tries to have equal grid point spacing in R and Z with a 50 point radial mesh.
         if rz_shape is None:
-            rz_shape = (50, int(np.floor(50 * self.elongation)))
+            rz_shape = (50, int(np.floor(25 * (self.upper_elongation + self.lower_elongation))))
         else:
             if len(rz_shape) != 2:
                 raise ValueError("rz_shape must be 2 integers")
