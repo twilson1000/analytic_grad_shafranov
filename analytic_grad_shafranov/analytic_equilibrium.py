@@ -768,13 +768,17 @@ class AnalyticGradShafranovSolution:
         x = R / R0
         R0, psi0, A = self.major_radius_m, self.psi_0, self.pressure_parameter
         return 1e-3 * psi0 * ((1 + A) * x**2 - A / x) / (const.mu_0 * R0**3)
-    def plotting_xy_grid(self, padding=1.05, n_points: int=100):
-        ''' Grid of (x, y) points that encloses entire plasma boundary plus some padding '''
+    def plotting_xy_arrays(self, padding=1.05, n_points: int=100):
+        ''' Grid of (x, y) points that encloses the entire plasma boundary plus some padding '''
         e = self.inverse_aspect_ratio
         xmin, xmax = (1 - padding*e), (1 + padding*e)
         ymin, ymax = padding * self.lower_point_xy[1], padding * self.upper_point_xy[1]
 
         return np.linspace(xmin, xmax, n_points), np.linspace(ymin, ymax, n_points)
+    def plotting_rz_arrays(self, **kwargs):
+        ''' Arrays of (R, Z) points that encloses the entire plasma boundary plus some padding. '''
+        x, y = self.plotting_xy_arrays(**kwargs)
+        return x * self.major_radius_m, y * self.major_radius_m
     def save_as_eqdsk(self, filename: str, rz_shape: Tuple[int, int]=None):
         # Default shape tries to have equal grid point spacing in R and Z with a 50 point radial mesh.
         if rz_shape is None:
@@ -790,7 +794,7 @@ class AnalyticGradShafranovSolution:
                     raise ValueError(f"rz_shape dimensions must be positive: {rz_shape}")
 
         # R, Z grid.
-        x_plot, y_plot = self.plotting_xy_grid()
+        x_plot, y_plot = self.plotting_xy_arrays()
         r = np.linspace(x_plot[0], x_plot[-1], rz_shape[0]) * self.major_radius_m
         z = np.linspace(y_plot[0], y_plot[-1], rz_shape[1]) * self.major_radius_m
 

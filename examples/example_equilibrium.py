@@ -59,8 +59,7 @@ def plot_plasma(plasma: AnalyticGradShafranovSolution, title=None):
     ax_F.grid()
 
     # Plot pressure and F functions at the midplane.
-    x_plot, y_plot = plasma.plotting_xy_grid()
-    R_plot, Z_plot =  plasma.major_radius_m * x_plot, plasma.major_radius_m * y_plot
+    R_plot, Z_plot = plasma.plotting_rz_arrays()
 
     psiN_midplane = plasma.psi_norm(R_plot, 0)
     ax_p.plot(R_plot, plasma.pressure_kPa(psiN_midplane), color="black")
