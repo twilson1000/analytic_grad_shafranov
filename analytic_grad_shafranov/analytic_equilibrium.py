@@ -872,7 +872,7 @@ class AnalyticGradShafranovSolution:
         for name in _ARRAY_VARIABLES:
             logger.info(f"Writing {name} ({data_1d[name].shape})")
             file_lines.extend(
-                format_lines(data_1d[name].flatten())
+                format_lines(data_1d[name].flatten("F")) # Flatten in Fortran style order so 2D arrays are read correctly.
             )
 
         # Size of boundary and limiter contours.
