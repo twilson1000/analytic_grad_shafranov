@@ -37,8 +37,8 @@ class AnalyticGradShafranovSolution(abc.ABC):
         major_radius_m: float,
         pressure_parameter: float,
         inverse_aspect_ratio: float,
-        elongation: float,
-        triangularity: float,
+        elongation: Union[float, Tuple[float, float]],
+        triangularity: Union[float, Tuple[float, float]],
         reference_magnetic_field_T: float,
         plasma_current_MA: float,
         kink_safety_factor: float = None,
@@ -58,9 +58,9 @@ class AnalyticGradShafranovSolution(abc.ABC):
         inverse_aspect_ratio: float
             Inverse aspect ratio epsilon [] = minor radius [m] / major radius [m].
         elongation: float
-            Plasma elongation kappa [].
+            Plasma elongation kappa []. Can be a tuple with the upper and lower triangularity.
         triangularity: float
-            Plasma triangularity delta [].
+            Plasma triangularity delta []. Can be a tuple with the upper and lower elongation.
         reference_magnetic_field_T: float
             Magnetic field strength at the geometric axis R = R0 [T].
         plasma_current_MA: float
@@ -565,7 +565,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         R0, psi0, A = self.major_radius_m, self.psi_0, self.pressure_parameter
         return 1e-3 * psi0 * ((1 + A) * x**2 - A / x) / (const.mu_0 * R0**3)
     def save_as_eqdsk(self, filename: str, rz_shape: Tuple[int, int]=None):
-        # 
+        # Default shape tries to have equal grid point spacing in R and Z with a 50 point radial mesh.
         if rz_shape is None:
             rz_shape = (50, int(np.floor(50 * self.elongation)))
         else:
@@ -949,35 +949,46 @@ class SingleNull(AnalyticGradShafranovSolution):
         y = np.linspace(-1.1*e*k, e*k, 101)
         return x, y
 
-class _Point2D:
-    __slots__ = ("r", "z")
-
-    def __init__(self, r: float, z: float):
-        ''' (r, z) is radius and height of point. '''
-        self.r = float(r)
-        self.z = float(z)
-
-class ExtremalPoint(_Point2D):
-    '''  '''
-    __slots__ = ()
+class ExtremalPoint:
+    __slots__ = ("_r", "_z", "_elongation", "_triangularity", "_x_point")
     x_point: bool = False
 
-    def elongation(self, major_radius_m: float, inverse_aspect_ratio: float, midplane_height_m: float=0.0) -> float:
-        dy = abs(self.z - midplane_height_m) / major_radius_m
-        return dy / inverse_aspect_ratio
-    def triangularity(self, major_radius_m: float, inverse_aspect_ratio: float) -> float:
-        dx = (major_radius_m - self.r) / major_radius_m
-        return dx / inverse_aspect_ratio
+    def __init__(self, elongation: float, triangularity: float, x_point: bool):
+        self._elongation = float(elongation)
+        self._triangularity = float(triangularity)
+        self._x_point = (x_point == True)
 
-class XPoint(ExtremalPoint):
-    __slots__ = ()
-    x_point: bool = True
+        if self.elongation <= 0:
+            raise ValueError(f"Elongation must be positive: {self.elongation}")
+        if abs(self.triangularity) > 1:
+            raise ValueError(f"Triangularity must be between -1 and 1: {self.triangularity}")
 
-    def elongation(self, *args, **kwargs) -> float:
-        return super().elongation(*args, **kwargs) / 1.1
+    @classmethod
+    def at_coordinates(cls, r: float, z: float, x_point: bool, inverse_aspect_ratio: float, major_radius_m: float):
+        elongation = abs(z) / major_radius_m / inverse_aspect_ratio
+        triangularity = (major_radius_m - r) / major_radius_m / inverse_aspect_ratio
 
-    def triangularity(self, *args, **kwargs) -> float:
-        return super().triangularity(*args, **kwargs) / 1.1
+        if x_point:
+            elongation /= 1.1
+            triangularity /= 1.1
+
+        return cls(elongation, triangularity, x_point)
+
+    @property
+    def r(self) -> float:
+        return self._r
+    @property
+    def z(self) -> float:
+        return self._z
+    @property
+    def elongation(self) -> float:
+        return self._elongation
+    @property
+    def triangularity(self) -> float:
+        return self._triangularity
+    @property
+    def x_point(self) -> float:
+        return self._x_point
         
 class UpDownAsymmetric(SingleNull):
     __slots__ = ("upper_point_object", "lower_point_object", "midplane_y")
@@ -987,40 +998,25 @@ class UpDownAsymmetric(SingleNull):
         major_radius_m: float,
         pressure_parameter: float,
         inverse_aspect_ratio: float,
-        upper_point: Union[ExtremalPoint, XPoint],
-        lower_point: Union[ExtremalPoint, XPoint],
+        upper_point: ExtremalPoint,
+        lower_point: ExtremalPoint,
         reference_magnetic_field_T: float,
         plasma_current_MA: float,
-        midplane_height_m: float = 0.0,
         kink_safety_factor: float = None,
         plasma_current_anticlockwise: bool = True,
         toroidal_field_anticlockwise: bool = True,
     ):
-        if not isinstance(upper_point, (ExtremalPoint, XPoint)):
-            raise ValueError("upper_point must be ExtremalPoint or XPoint")
-        if not isinstance(lower_point, (ExtremalPoint, XPoint)):
-            raise ValueError("lower_point must be ExtremalPoint or XPoint")
+        if not isinstance(upper_point, ExtremalPoint):
+            raise ValueError("upper_point must be ExtremalPoint")
+        if not isinstance(lower_point, ExtremalPoint):
+            raise ValueError("lower_point must be ExtremalPoint")
         
         self.upper_point_object = upper_point
         self.lower_point_object = lower_point
-        midplane_height_m = float(midplane_height_m)
-        self.midplane_y = midplane_height_m / major_radius_m
 
-        # Calculate upper and lower elongations and triangularities.
-        elongation = (
-            upper_point.elongation(major_radius_m, inverse_aspect_ratio, midplane_height_m=midplane_height_m),
-            lower_point.elongation(major_radius_m, inverse_aspect_ratio, midplane_height_m=midplane_height_m),
-        )
-        triangularity = (
-            upper_point.triangularity(major_radius_m, inverse_aspect_ratio),
-            lower_point.triangularity(major_radius_m, inverse_aspect_ratio),
-        )
-
-        # Triangularity above 1 will break the d-shaped models.
-        if abs(triangularity[0]) > 1.0:
-            raise ValueError("Upper triangularity > 1")
-        if abs(triangularity[1]) > 1.0:
-            raise ValueError("Lower triangularity > 1")
+        # Set upper and lower elongation and triangularity.
+        elongation = (upper_point.elongation, lower_point.elongation,)
+        triangularity = (upper_point.triangularity, lower_point.triangularity,)
 
         super().__init__(
             major_radius_m,
@@ -1056,7 +1052,6 @@ class UpDownAsymmetric(SingleNull):
         y[~mask] = self.midplane_y + e * k * np.sin(theta[~mask])
 
         return x, y
-    
     def d_shape_boundary_derivatives(self, theta: float) -> float:
         theta = np.array(theta)
         xprime, yprime = np.zeros_like(theta), np.zeros_like(theta)
@@ -1077,33 +1072,6 @@ class UpDownAsymmetric(SingleNull):
         yprime[~mask] = e * k * np.cos(theta[~mask])
 
         return xprime, yprime
-
-    def calculate_geometry_factors(self, use_d_shaped_model: bool=True):
-        '''
-        Calculate the normalised circumference and volume of the plasma. Can either calculate based on the estimated
-        boundary contour from the D shaped model or from the fitted poloidal flux function.
-        '''
-        if use_d_shaped_model:
-            e, k, d = self.inverse_aspect_ratio, self.elongation, self.triangularity
-            alpha = np.arcsin(d)
-
-            theta = np.linspace(0, np.pi, 101)
-            x, y = self.d_shape_boundary(theta)
-            xprime, yprime = self.d_shape_boundary_derivatives(theta)
-            rprime = (xprime**2 + yprime**2)**0.5
-
-            self.normalised_circumference = 2 * np.trapz(rprime, theta)
-            self.normalised_volume = -2 * np.trapz(x*xprime*y, theta)
-        else:
-            raise NotImplementedError("Normalised circumference not calculated.")
-            x, y = self.metric_computation_grid()
-            x_grid, ygrid = np.meshgrid(x, y, indexing='ij')
-            dxdy = (x[1] - x[0]) * (y[1] - y[0])
-
-            psiN = self._psi_bar(x_grid, ygrid) * x_grid
-            mask = psiN > 0
-            self.normalised_volume = np.sum(mask) * dxdy
-    
     def calculate_coefficients(self):
         '''
         Solve for the weighting coefficients of the polynomials defining psi. We fit to a d shaped contour with the
