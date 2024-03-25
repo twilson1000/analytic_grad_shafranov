@@ -7,6 +7,7 @@ import numpy as np
 import numpy.typing as npt
 import scipy.constants as const
 from scipy.interpolate import interp1d
+from skimage import measure
 from typing import List, Tuple, Union
 
 # Local imports
@@ -662,25 +663,12 @@ class AnalyticGradShafranovSolution:
         # l_p is the poloidal distance along the surface of constant psi.
         q_profile = np.zeros(mesh_size)
 
-        # Don't use psi_norm = 0 as zero size. Also skip psi_norm = 1 as we
-        # use the boundary contour instead which should be properly shaped
-        # when we have X points.
-        psi_norm_mesh = np.linspace(0, 1, mesh_size + 1)[1:-1]
-
         # Calculate (x, y) locations of contours.
         xmesh, ymesh = self.metric_computation_grid()
+        dxmesh, dymesh = xmesh[-1] - xmesh[0], ymesh[-1] - ymesh[0]
         psi_bar_axis = self.psi_bar(*self.magnetic_axis / R0)
-        psi_norm_grid = self.psi_bar(*np.meshgrid(xmesh, ymesh, indexing='ij')) / psi_bar_axis
-        cs = plt.contour(xmesh, ymesh, psi_norm_grid.T, levels=psi_norm_mesh)
+        psi_bar_norm_grid = self.psi_bar(*np.meshgrid(xmesh, ymesh, indexing='ij')) / psi_bar_axis
 
-        # Throw an error if the contour finding script fails.
-        if len(cs.collections) != mesh_size - 1:
-            raise ValueError("Unable to find contours for all psi norm mesh points.")
-        
-        # Clear matplotlib cache. NOTE: This might clear existing figures!
-        plt.close('all')
-
-        # This is
         def integrand(x, y):
             # Return 1 / (R |grad{psi}|). Technically we use use
             # 1 / (x |grad_x,y{psi}|) but the factor of major radius cancels.
@@ -696,13 +684,21 @@ class AnalyticGradShafranovSolution:
                 lp[k + 1] = lp[k] + (dx**2 + dy**2)**0.5
             
             return lp
+        
+        # NOTE: This is psi_bar normalised, so it is 1 at the magnetic axis
+        # and zero at the boundary. We will use the computed boundary contour
+        # to do psi_bar_norm = 0. Also skip psi_bar_norm = 1 as there is just a single point (bad numerics).
+        psi_norm_mesh = np.linspace(1, 0, mesh_size + 1)[1:-1]
 
-        # NOTE: Contour set collections are in opposite order to levels values for some reason!
-        # So reverse the order of cs.collections to match the psi_norm value.
-        for i, (psi_norm, value_set) in enumerate(zip(psi_norm_mesh, cs.collections[::-1])):
-            # Integrate 1 / (R |grad{psi}|) over poloidal contour.
-            v = value_set.get_paths()[0].vertices
-            x, y = v[:, 0], v[:, 1]
+        for i, psi_norm in enumerate(psi_norm_mesh):
+            # Use this instead of matplotlib.contour as the latter forces figure creation.
+            contour = measure.find_contours(psi_bar_norm_grid, level=psi_norm)
+
+            if len(contour) == 0:
+                raise ValueError(f"Unable to find contour for psi norm = {psi_norm}")
+
+            x = xmesh[0] + dxmesh * (contour[0][:, 0] / psi_bar_norm_grid.shape[0])
+            y = ymesh[0] + dymesh * (contour[0][:, 1] / psi_bar_norm_grid.shape[1])
 
             # F function is a flux function so we can move it out the integral (F / R is toroidal field).
             F = self.f_function(psi_norm)
