@@ -59,8 +59,8 @@ class AnalyticGradShafranovSolution:
     __slots__ = (
         "major_radius_m", "pressure_parameter", "coefficients", "inverse_aspect_ratio",
         "reference_magnetic_field_T", "plasma_current_MA", "psi_0",
-        "normalised_circumference", "normalised_volume", "poloidal_beta", "toroidal_beta",
-        "total_beta", "normalised_beta", "kink_safety_factor", "psi_axis", "magnetic_axis",
+        "normalised_circumference", "normalised_volume", "beta_poloidal", "beta_toroidal",
+        "beta_total", "beta_normalised", "kink_safety_factor", "psi_axis", "magnetic_axis",
         "plasma_current_anticlockwise", "toroidal_field_anticlockwise",
 
         "upper_point", "lower_point", "upper_point_xy", "lower_point_xy", "equatorial_point_inner_xy",
@@ -641,10 +641,10 @@ class AnalyticGradShafranovSolution:
         psix_integral = np.sum(psix_integrand) * dxdy
         
         # Calculate beta of plasma.
-        self.poloidal_beta = (2 * Cp**2 * (1 + A) / V) * psix_integral / Ip_integral**2
-        self.toroidal_beta = self.poloidal_beta * e**2 / qstar**2
-        self.total_beta = self.poloidal_beta * e**2 / (e**2 + qstar**2)
-        self.normalised_beta = (e * R0 * B0 / self.plasma_current_MA) * self.total_beta
+        self.beta_poloidal = (2 * Cp**2 * (1 + A) / V) * psix_integral / Ip_integral**2
+        self.beta_toroidal = self.beta_poloidal * e**2 / qstar**2
+        self.beta_total = self.beta_poloidal * e**2 / (e**2 + qstar**2)
+        self.beta_normalised = (e * R0 * B0 / self.plasma_current_MA) * self.beta_total
 
         # Calculate value of psi at magnetic axis for given plasma current.
         self.psi_0 = self.plasma_current_MA * 1e6 * const.mu_0 * self.major_radius_m / Ip_integral
