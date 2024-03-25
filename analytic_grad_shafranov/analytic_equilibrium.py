@@ -404,7 +404,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         return x, y
     def calculate_metrics(self):
         '''
-        Calculate the poloidal flux normalisation and the plasma 'figures of merit':
+        Calculate the poloidal flux coordinate normalisation (psi_0) and the plasma 'figures of merit':
         beta_poloidal, beta_toroidal, beta_total and beta_normalised.
         '''
         e, k = self.inverse_aspect_ratio, self.elongation
@@ -447,6 +447,7 @@ class AnalyticGradShafranovSolution(abc.ABC):
         # Evaluate value of psi_norm at the magnetic axis.
         self.psi_axis = self.psi(*self.magnetic_axis)
     def calculate_q_profile(self, mesh_size: int=30):
+        ''' Calculate q profile. '''
         R0 = self.major_radius_m
 
         # The q profile q(psi) = 1/(2*pi) * int{F(psi) / (R |grad{psi}|)} dl_p where
