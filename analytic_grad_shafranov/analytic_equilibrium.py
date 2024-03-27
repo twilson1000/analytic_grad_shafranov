@@ -780,7 +780,7 @@ class AnalyticGradShafranovSolution:
         ''' Arrays of (R, Z) points that encloses the entire plasma boundary plus some padding. '''
         x, y = self.plotting_xy_arrays(**kwargs)
         return x * self.major_radius_m, y * self.major_radius_m
-    def save_as_eqdsk(self, filename: str, rz_shape: Tuple[int, int]=None):
+    def save_as_eqdsk(self, filename: str, rz_shape: Tuple[int, int]=None, flux_grid_shape: int=50):
         # Default shape tries to have equal grid point spacing in R and Z with a 50 point radial mesh.
         if rz_shape is None:
             rz_shape = (50, int(np.floor(25 * (self.upper_elongation + self.lower_elongation))))
@@ -802,6 +802,9 @@ class AnalyticGradShafranovSolution:
         rmin, rmax = r[0], r[-1]
         zmin, zmax = z[0], z[-1]
 
+        # Flux grid used to define f, p, ffprime, pprime and q.
+        flux_grid_shape = int(flux_grid_shape)
+
         # Data.
         _HEADER_VARIABLES = (
             'rdim', 'zdim', 'rcentr', 'rleft', 'zmid', 'rmaxis', 'zmaxis', 'simag',
@@ -813,6 +816,7 @@ class AnalyticGradShafranovSolution:
         data_0d = {
             'nw': rz_shape[0], # Number of radial points.
             'nh': rz_shape[1], # Number of height points.
+            'nflux': flux_grid_shape, # Dummy value that is not used.
             'rdim': rmax - rmin, # Range of radial mesh [m].
             'zdim': zmax - zmin, # Range of height mesh [m].
             'rcentr': self.major_radius_m, # Major radius [m].
@@ -825,13 +829,12 @@ class AnalyticGradShafranovSolution:
             'bcentr': self.reference_magnetic_field_T, # Vacuum toroidal magnetic field at major radius [T].
             'current': self.plasma_current_MA * 1.0e6, # Total plasma current [A].
             'xdum': 0, # Dummy value that is not used.
-            'idum': 0, # Dummy value that is not used.
             'nbbbs': len(self.boundary_radius), # Number of points in boundary contour.
             'limitr': 0, # Number of points in limiter contour. We don't provide this so set to 0.
         }
 
         # Psi array is same shape as radial mesh.
-        psi_norm = np.linspace(0, 1, rz_shape[0])
+        psi_norm = np.linspace(0, 1, flux_grid_shape)
         ffprime_const = -self.pressure_parameter * self.psi_0**2 / self.major_radius_m**2
         pprime_const = (1 + self.pressure_parameter) * self.psi_0**2 / self.major_radius_m**4 / const.mu_0
         
@@ -851,8 +854,8 @@ class AnalyticGradShafranovSolution:
         _ENTRIES_PER_LINE = 5
         _VALUE_FORMAT = "{:16.9e}"
         _INTEGER_FORMAT_1 = "{:4.0f}"
-        _INTEGER_FORMAT_2 = " {:.0f}"
-        _COMMENT_FORMAT = "{:>48}"
+        _INTEGER_FORMAT_2 = " {:5.0f}"
+        _COMMENT_FORMAT = "{:>52}"
 
         def format_lines(data: npt.NDArray[float]) -> List[str]:
             str_values = [_VALUE_FORMAT.format(x) for x in data]
@@ -865,7 +868,7 @@ class AnalyticGradShafranovSolution:
 
         # First line containing comment and array sizes.
         comment = _COMMENT_FORMAT.format("Analytic Grad Shafranov Solution")
-        sizes = sizes = "".join([_INTEGER_FORMAT_1.format(data_0d[variable_name]) for variable_name in ('idum', 'nw', 'nh')])
+        sizes = sizes = "".join([_INTEGER_FORMAT_1.format(data_0d[variable_name]) for variable_name in ('nw', 'nh', 'nflux')])
         file_lines.append(comment + sizes)
 
         # 0D variables.
