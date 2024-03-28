@@ -720,7 +720,8 @@ class AnalyticGradShafranovSolution:
             y = ymesh[0] + dymesh * (contour[0][:, 1] / psi_bar_norm_grid.shape[1])
 
             # F function is a flux function so we can move it out the integral (F / R is toroidal field).
-            F = self.f_function(psi_norm)
+            # As we are COCOS 11 q > 0 so take absolute value of F.
+            F = abs(self.f_function(psi_norm))
             
             # Integrate using trapezium rule.
             lp = R0 * calculate_arclength(x, y) # Poloidal arclength [m].
@@ -731,8 +732,8 @@ class AnalyticGradShafranovSolution:
         # towards the divertor instead of following the high field side boundary.
         x_bdy, y_bdy = self.boundary_radius / R0, self.boundary_height / R0
 
-        # Integrate using trapezium rule.
-        F = self.f_function(1)
+        # Integrate using trapezium rule. As we are COCOS 11 q > 0 so take absolute value of F.
+        F = abs(self.f_function(1))
         lp = R0 * calculate_arclength(x_bdy, y_bdy) # Poloidal arclength [m].
         q_profile[-1] = F * np.trapz(integrand(x_bdy, y_bdy), lp)
         
