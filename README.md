@@ -81,7 +81,7 @@ $$ \psi_{\text{pol}}(r, z) = - \frac{1}{2\pi} \int B \cdot dS_p $$
 - The poloidal flux function $\psi_{\text{pol}}$ increases as the minor radius / flux coordinate $\rho$ increases i.e. $d\psi_{\text{pol}}/d\rho > 0$.
 - The $q$ profile is defined for a given $\psi$ as
 
-$$ q(\psi) = \frac{1}{2\pi} \oint \frac{F(\psi)}{R|\nabla \psi|} dl_p $$
+$$ q(\psi) = \frac{1}{2\pi} \oint \frac{|F(\psi)|}{R|\nabla \psi|} dl_p $$
 
 - The integral above is taken over poloidal distance $l_p$.
 - The $q$ profile is positive when $B_0, I_p > 0$.
