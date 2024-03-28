@@ -121,12 +121,12 @@ class AnalyticGradShafranovSolution:
         self.upper_point = upper_point
         self.lower_point = lower_point
         
-        self.reference_magnetic_field_T: float = float(reference_magnetic_field_T)
+        self.reference_magnetic_field_T: float = abs(float(reference_magnetic_field_T))
         self.plasma_current_anticlockwise: bool = plasma_current_anticlockwise
         self.toroidal_field_anticlockwise: bool = toroidal_field_anticlockwise
 
-        if self.toroidal_field_anticlockwise:
-            self.reference_magnetic_field_T *= -abs(self.reference_magnetic_field_T)
+        if not self.toroidal_field_anticlockwise:
+            self.reference_magnetic_field_T *= -1
 
         # Solve for the weighting coefficients for each of the polynomials.
         self.calculate_coefficients()
@@ -145,11 +145,14 @@ class AnalyticGradShafranovSolution:
         R0, Cp = self.major_radius_m, self.normalised_circumference
 
         if kink_safety_factor is None:
-            self.plasma_current_MA: float = float(plasma_current_MA)
-            self.kink_safety_factor = e*B0*R0*Cp / const.mu_0 / (1e6 * self.plasma_current_MA)
+            self.plasma_current_MA: float = abs(float(plasma_current_MA))
+            self.kink_safety_factor = abs(e*B0*R0*Cp / const.mu_0 / (1e6 * self.plasma_current_MA))
         else:
-            self.kink_safety_factor = float(kink_safety_factor)
-            self.plasma_current_MA = 1e-6 * e*B0*R0*Cp / const.mu_0 / self.kink_safety_factor
+            self.kink_safety_factor = abs(float(kink_safety_factor))
+            self.plasma_current_MA = 1e-6 * abs(e*B0*R0*Cp / const.mu_0 / self.kink_safety_factor)
+        
+        if not self.plasma_current_anticlockwise:
+            self.plasma_current_MA *= -1
         
         # Set dummy value of psi axis. This will be set in calculate_metrics() to match the prescribed plasma current.
         self.psi_0 = 1.0
@@ -372,7 +375,14 @@ class AnalyticGradShafranovSolution:
         # NOTE: Need a test for this!
         B_R = self.psi_dZ(R, Z) / R
         B_Z = -self.psi_dR(R, Z) / R
+
+        # We account for the direction of the toroidal field in f_function.
         B_toroidal = self.f_function(psi_norm) / R
+
+        # If plasma current is negative poloidal field reverses sign.
+        if not self.plasma_current_anticlockwise:
+            B_R *= -1
+            B_z *= -1
 
         return B_R, B_toroidal, B_Z
     
@@ -666,14 +676,11 @@ class AnalyticGradShafranovSolution:
         self.beta_poloidal = (2 * Cp**2 * (1 + A) / V) * psix_integral / Ip_integral**2
         self.beta_toroidal = self.beta_poloidal * e**2 / qstar**2
         self.beta_total = self.beta_poloidal * e**2 / (e**2 + qstar**2)
-        self.beta_normalised = (e * R0 * abs(B0) / self.plasma_current_MA) * self.beta_total
+        self.beta_normalised = (e * R0 * abs(B0) / abs(self.plasma_current_MA)) * self.beta_total
 
         # Calculate value of psi at magnetic axis for given plasma current.
-        self.psi_0 = self.plasma_current_MA * 1e6 * const.mu_0 * self.major_radius_m / Ip_integral
-
-        # If the plasma current is clockwise flip the sign of the poloidal flux.
-        if not self.plasma_current_anticlockwise:
-            self.psi_0 *= -1
+        # Enforce psi to be increasing with minor radius.
+        self.psi_0 = -abs(self.plasma_current_MA * 1e6 * const.mu_0 * self.major_radius_m / Ip_integral)
 
         # Evaluate value of psi_norm at the magnetic axis.
         self.psi_axis = self.psi(*self.magnetic_axis)
