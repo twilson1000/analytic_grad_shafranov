@@ -67,7 +67,7 @@ $$ \beta_p = \frac{2 \mu_0 \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \frac{I_2}{V}}{\
 
 ## Coordinate Systems ##
 
-We use the following coordinate systems correspoinding to COCOS=1:
+We use the following coordinate systems correspoinding to COCOS=11:
 
 - $(R, \phi, Z)$ is the right handed cylindrical coordinate system.
 - $(\Psi, \theta, \phi)$ is the right handed flux coordinate system.
