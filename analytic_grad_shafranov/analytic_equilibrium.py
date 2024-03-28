@@ -14,18 +14,21 @@ from typing import List, Tuple, Union
 logger = logging.getLogger(__name__)
 
 class ExtremalPoint:
-    __slots__ = ("_elongation", "_triangularity", "_x_point")
+    __slots__ = ("_elongation", "_triangularity", "_x_point", "_squareness")
     x_point: bool = False
 
-    def __init__(self, elongation: float, triangularity: float, x_point: bool):
+    def __init__(self, elongation: float, triangularity: float, x_point: bool, squareness: float=0.0):
         self._elongation = float(elongation)
         self._triangularity = float(triangularity)
         self._x_point = (x_point == True)
+        self._squareness = float(squareness)
 
         if self.elongation <= 0:
             raise ValueError(f"Elongation must be positive: {self.elongation}")
         if abs(self.triangularity) > 1:
             raise ValueError(f"Triangularity must be between -1 and 1: {self.triangularity}")
+        if abs(self.squareness) > 0.5:
+            raise ValueError(f"squareness must be between -0.5 and 0.5: {self.squareness}")
 
     @classmethod
     def at_coordinates(cls, r: float, z: float, x_point: bool, inverse_aspect_ratio: float, major_radius_m: float):
@@ -47,6 +50,9 @@ class ExtremalPoint:
     @property
     def x_point(self) -> float:
         return self._x_point
+    @property
+    def squareness(self) -> float:
+        return self._squareness
 
 class AnalyticGradShafranovSolution:
     '''
@@ -162,6 +168,12 @@ class AnalyticGradShafranovSolution:
     @property
     def lower_triangularity(self) -> float:
         return self.lower_point.triangularity
+    @property
+    def upper_squareness(self) -> float:
+        return self.upper_point.squareness
+    @property
+    def lower_squareness(self) -> float:
+        return self.lower_point.squareness
 
     @staticmethod
     def psi_homogenous(x: float, y: float) -> Tuple[float]:
@@ -372,13 +384,14 @@ class AnalyticGradShafranovSolution:
         '''
         R0, e = self.major_radius_m, self.inverse_aspect_ratio
 
-        # Some coefficients from D shaped model. Use average elongation and triangularity at midplane.
+        # Some coefficients from D shaped model. Use average elongation, triangularity and squareness at midplane.
         
         k_mid = 0.5 * (self.upper_elongation + self.lower_elongation)
         d_mid = 0.5 * (self.upper_triangularity + self.lower_triangularity)
+        s_mid = 0.5 * (self.upper_squareness + self.lower_squareness)
         alpha_mid = np.arcsin(d_mid)
-        N1_mid = - (1 + alpha_mid)**2 / e / k_mid**2
-        N2_mid = (1 - alpha_mid)**2 / e / k_mid**2
+        N1_mid = - (1 + alpha_mid)**2 / e / k_mid**2 / (1 + 2*s_mid**2)
+        N2_mid = (1 - alpha_mid)**2 / e / k_mid**2 / (1 + 2*s_mid**2)
 
         # Points to fit D shaped model at.
         self.equatorial_point_inner_xy = (1 - e, 0)
@@ -426,8 +439,8 @@ class AnalyticGradShafranovSolution:
             M[8] = self.psi_homogenous_dy(*self.upper_point_xy)
         else:
             # Upper high point.
-            k, d = self.upper_elongation, self.upper_triangularity
-            N3 = -k / e / (1 - d**2)
+            k, d, s = self.upper_elongation, self.upper_triangularity, self.upper_squareness
+            N3 = -k * (1 - 2*s**2) / e / (1 - d**2)
             self.upper_point_xy = (1 - d*e, k*e)
 
             # Upper high point (psi = 0).
@@ -459,7 +472,7 @@ class AnalyticGradShafranovSolution:
         else:
             # Lower high point.
             k, d = self.lower_elongation, self.lower_triangularity
-            N3 = -k / e / (1 - d**2)
+            N3 = k * (1 - 2*s**2) / e / (1 - d**2)
             self.lower_point_xy = (1 - d*e, -k*e)
 
             # Lower high point (psi = 0).
@@ -471,7 +484,7 @@ class AnalyticGradShafranovSolution:
             y[10] = -self.psi_particular_dx(*self.lower_point_xy)
 
             # Lower high point curvature (d^2(psi)/dx^2 + N3 * d(psi)/dy = 0).
-            M[11] = np.array(self.psi_homogenous_dx2(*self.lower_point_xy)) - N3 * np.array(self.psi_homogenous_dy(*self.lower_point_xy))
+            M[11] = np.array(self.psi_homogenous_dx2(*self.lower_point_xy)) + N3 * np.array(self.psi_homogenous_dy(*self.lower_point_xy))
             y[11] = -self.psi_particular_dx2(*self.lower_point_xy)
 
         self.coefficients = np.linalg.solve(M, y)
@@ -506,19 +519,22 @@ class AnalyticGradShafranovSolution:
         x, y = np.zeros_like(theta), np.zeros_like(theta)
         mask = np.logical_and(theta >= 0, theta <= np.pi)
 
-        e = self.inverse_aspect_ratio  
+        e = self.inverse_aspect_ratio
+
+        def d_shape(theta, k, alpha, s):
+            x = 1 + e * np.cos(theta + alpha*np.sin(theta))
+            y = e * k * np.sin(theta + s*np.sin(2*theta))
+            return x, y
 
         # Above midplane.
-        k, d = self.upper_elongation, self.upper_triangularity
+        k, d, s = self.upper_elongation, self.upper_triangularity, self.upper_squareness
         alpha = np.arcsin(d)
-        x[mask] = 1 + e * np.cos(theta[mask] + alpha*np.sin(theta[mask]))
-        y[mask] = e * k * np.sin(theta[mask])
+        x[mask], y[mask] = d_shape(theta[mask], k, alpha, s)
 
         # Below midplane.
-        k, d = self.lower_elongation, self.lower_triangularity
+        k, d, s = self.lower_elongation, self.lower_triangularity, self.lower_squareness
         alpha = np.arcsin(d)
-        x[~mask] = 1 + e * np.cos(theta[~mask] + alpha*np.sin(theta[~mask]))
-        y[~mask] = e * k * np.sin(theta[~mask])
+        x[~mask], y[~mask] = d_shape(theta[~mask], k, alpha, s)
 
         return x, y
     def d_shape_boundary_derivatives(self, theta: float) -> float:
@@ -526,19 +542,22 @@ class AnalyticGradShafranovSolution:
         xprime, yprime = np.zeros_like(theta), np.zeros_like(theta)
         mask = np.logical_and(theta >= 0, theta <= np.pi)
 
-        e = self.inverse_aspect_ratio  
+        e = self.inverse_aspect_ratio
+
+        def d_shape_prime(theta, k, alpha, s):
+            xprime = -e * np.sin(theta + alpha*np.sin(theta)) * (1 + alpha*np.cos(theta))
+            yprime = e * k * np.cos(theta + s*np.sin(2*theta)) * (1 + 2*s*np.cos(2*theta))
+            return xprime, yprime
 
         # Above midplane.
-        k, d = self.upper_elongation, self.upper_triangularity
+        k, d, s = self.upper_elongation, self.upper_triangularity, self.upper_squareness
         alpha = np.arcsin(d)
-        xprime[mask] = -e * np.sin(theta[mask] + (alpha*np.sin(theta[mask]))) * (1 + alpha*np.cos(theta[mask]))
-        yprime[mask] = e * k * np.cos(theta[mask])
+        xprime[mask], yprime[mask] = d_shape_prime(theta[mask], k, alpha, s)
 
         # Below midplane.
-        k, d = self.lower_elongation, self.lower_triangularity
+        k, d, s = self.lower_elongation, self.lower_triangularity, self.lower_squareness
         alpha = np.arcsin(d)
-        xprime[~mask] = -e * np.sin(theta[~mask] + (alpha*np.sin(theta[~mask]))) * (1 + alpha*np.cos(theta[~mask]))
-        yprime[~mask] = e * k * np.cos(theta[~mask])
+        xprime[~mask], yprime[~mask] = d_shape_prime(theta[~mask], k, alpha, s)
 
         return xprime, yprime
     def calcuate_boundary_contour(self, n_points: int=101, psi_norm_threshold: float=1.0e-3, max_iterations: int=100):
@@ -713,7 +732,7 @@ class AnalyticGradShafranovSolution:
         x_bdy, y_bdy = self.boundary_radius / R0, self.boundary_height / R0
 
         # Integrate using trapezium rule.
-        F = self.reference_magnetic_field_T * R0
+        F = self.f_function(1)
         lp = R0 * calculate_arclength(x_bdy, y_bdy) # Poloidal arclength [m].
         q_profile[-1] = F * np.trapz(integrand(x_bdy, y_bdy), lp)
         
@@ -923,11 +942,12 @@ class Limiter(AnalyticGradShafranovSolution):
         reference_magnetic_field_T: float,
         plasma_current_MA: float,
         kink_safety_factor: float = None,
+        squareness: float = 0.0,
         plasma_current_anticlockwise: bool = True,
         toroidal_field_anticlockwise: bool = True,
-        use_d_shaped_model: bool = False
+        use_d_shaped_model: bool = False,
     ):
-        upper_point = ExtremalPoint(elongation, triangularity, False)
+        upper_point = ExtremalPoint(elongation, triangularity, False, squareness=squareness)
         lower_point = upper_point
         super().__init__(
             major_radius_m,
@@ -956,11 +976,12 @@ class DoubleNull(AnalyticGradShafranovSolution):
         reference_magnetic_field_T: float,
         plasma_current_MA: float,
         kink_safety_factor: float = None,
+        squareness: float = 0.0,
         plasma_current_anticlockwise: bool = True,
         toroidal_field_anticlockwise: bool = True,
-        use_d_shaped_model: bool = False
+        use_d_shaped_model: bool = False,
     ):
-        upper_point = ExtremalPoint(elongation, triangularity, True)
+        upper_point = ExtremalPoint(elongation, triangularity, True, squareness=squareness)
         lower_point = upper_point
 
         super().__init__(
@@ -990,17 +1011,18 @@ class SingleNull(AnalyticGradShafranovSolution):
         reference_magnetic_field_T: float,
         plasma_current_MA: float,
         kink_safety_factor: float = None,
+        squareness: float = 0.0,
         plasma_current_anticlockwise: bool = True,
         toroidal_field_anticlockwise: bool = True,
         use_d_shaped_model: bool = False,
         lower_x: bool = True,
     ):
         if lower_x:
-            upper_point = ExtremalPoint(elongation, triangularity, False)
-            lower_point = ExtremalPoint(elongation, triangularity, True)
+            upper_point = ExtremalPoint(elongation, triangularity, False, squareness=squareness)
+            lower_point = ExtremalPoint(elongation, triangularity, True, squareness=squareness)
         else:
-            upper_point = ExtremalPoint(elongation, triangularity, True)
-            lower_point = ExtremalPoint(elongation, triangularity, False)
+            upper_point = ExtremalPoint(elongation, triangularity, True, squareness=squareness)
+            lower_point = ExtremalPoint(elongation, triangularity, False, squareness=squareness)
 
         super().__init__(
             major_radius_m,
