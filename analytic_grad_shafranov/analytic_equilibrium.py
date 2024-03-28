@@ -2,7 +2,6 @@
 
 # Standard imports
 import logging
-import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import scipy.constants as const
@@ -781,6 +780,21 @@ class AnalyticGradShafranovSolution:
         x, y = self.plotting_xy_arrays(**kwargs)
         return x * self.major_radius_m, y * self.major_radius_m
     def save_as_eqdsk(self, filename: str, rz_shape: Tuple[int, int]=None, flux_grid_shape: int=50):
+        """
+        Meant to be 48/52 characters then 3 4 character integers nxeqd, nyeqd, nveqd
+
+        GENRAY read routine says 52 characters then 3 integers
+        Geqdsk specification document says 48 characters then 3 integers
+
+        nveqd is NOT part of the standard eqdsk format! GENRAY and CQL3D can handle it, so can pyEquilibrium. Need to check JETTO and LUKE.
+
+
+        lengths of boundary and limiter contours are meant to be provided as 5 character integers
+
+        nxeqd and nyeqk are x, y shapes of psi array
+        nveqd is the number of flux surfaces on which p, f, p', f' and q are tabulated.
+        GENRAY and CQL3D support this?
+        """
         # Default shape tries to have equal grid point spacing in R and Z with a 50 point radial mesh.
         if rz_shape is None:
             rz_shape = (50, int(np.floor(25 * (self.upper_elongation + self.lower_elongation))))
@@ -853,8 +867,8 @@ class AnalyticGradShafranovSolution:
         # Format strings for data.
         _ENTRIES_PER_LINE = 5
         _VALUE_FORMAT = "{:16.9e}"
-        _INTEGER_FORMAT_1 = "{:4.0f}"
-        _INTEGER_FORMAT_2 = " {:5.0f}"
+        _INTEGER_FORMAT_1 = "{:4n}"
+        _INTEGER_FORMAT_2 = "{:5n}"
         _COMMENT_FORMAT = "{:>52}"
 
         def format_lines(data: npt.NDArray[float]) -> List[str]:
