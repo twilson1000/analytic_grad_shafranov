@@ -126,7 +126,7 @@ class AnalyticGradShafranovSolution:
         self.toroidal_field_anticlockwise: bool = toroidal_field_anticlockwise
 
         if self.toroidal_field_anticlockwise:
-            self.reference_magnetic_field_T *= -1
+            self.reference_magnetic_field_T *= -abs(self.reference_magnetic_field_T)
 
         # Solve for the weighting coefficients for each of the polynomials.
         self.calculate_coefficients()
