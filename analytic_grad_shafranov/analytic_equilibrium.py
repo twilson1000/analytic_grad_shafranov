@@ -125,6 +125,9 @@ class AnalyticGradShafranovSolution:
         self.plasma_current_anticlockwise: bool = plasma_current_anticlockwise
         self.toroidal_field_anticlockwise: bool = toroidal_field_anticlockwise
 
+        if self.toroidal_field_anticlockwise:
+            self.reference_magnetic_field_T *= -1
+
         # Solve for the weighting coefficients for each of the polynomials.
         self.calculate_coefficients()
         
@@ -663,7 +666,7 @@ class AnalyticGradShafranovSolution:
         self.beta_poloidal = (2 * Cp**2 * (1 + A) / V) * psix_integral / Ip_integral**2
         self.beta_toroidal = self.beta_poloidal * e**2 / qstar**2
         self.beta_total = self.beta_poloidal * e**2 / (e**2 + qstar**2)
-        self.beta_normalised = (e * R0 * B0 / self.plasma_current_MA) * self.beta_total
+        self.beta_normalised = (e * R0 * abs(B0) / self.plasma_current_MA) * self.beta_total
 
         # Calculate value of psi at magnetic axis for given plasma current.
         self.psi_0 = self.plasma_current_MA * 1e6 * const.mu_0 * self.major_radius_m / Ip_integral
