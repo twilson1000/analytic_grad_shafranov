@@ -786,7 +786,7 @@ class AnalyticGradShafranovSolution:
         ''' Toroidal current density [kA m^-2]. '''
         R0, psi0, A = self.major_radius_m, self.psi_0, self.pressure_parameter
         x = R / R0
-        return 1e-3 * psi0 * ((1 + A) * x**2 - A / x) / (const.mu_0 * R0**3)
+        return 1e-3 * psi0 * (A / x - (1 + A) * x**2) / (const.mu_0 * R0**3)
     def plotting_xy_arrays(self, padding=1.05, n_points: int=100):
         ''' Grid of (x, y) points that encloses the entire plasma boundary plus some padding '''
         e = self.inverse_aspect_ratio
