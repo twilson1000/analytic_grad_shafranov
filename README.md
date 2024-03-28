@@ -98,3 +98,23 @@ Under these definitions, for positive (counter-clockwise) toroidal field $B_0$ a
 - The poloidal field $B_p$ is **clockwise** and therefore $B_\theta > 0$ as $\theta$ is positive in the clockwise direction.
 - The $q$ profile is positive.
 - The toroidal flux function $\psi_{\text{pol}}$ is positive.
+
+## Including Squareness ##
+
+Some spherical tokamak plasmas have extreme shapes which requires defining another geometry parameter to better capture the plasma shape called the squareness $s$. This enters the d-shaped model contour as
+
+$$ x = 1 + \epsilon \cos \left( \theta + \alpha \sin \theta \right) $$
+$$ y = \kappa \epsilon \sin \left( \theta + s \sin(2\theta) \right) $$
+
+where as before $-1 \le \delta \le 1$, $-0.5 \le s \le 0.5$ and $\alpha = \arcsin \left( \delta \right)$. This restriction on the squareness $s$ keeps the plasma boundary convex. The squareness modifies the curvature at our points of interest:
+
+- Outer equatorial point $(\theta=0)$:
+$$\left. \frac{d^2 y}{dx^2} \right|_{\theta=0} = -\frac{(1 + \alpha)^2}{\kappa \epsilon^2 (1 + 2s)^2} $$
+- Inner equatorial point $(\theta=\pi)$:
+$$\left. \frac{d^2 y}{dx^2} \right|_{\theta=\pi} = \frac{(1 - \alpha)^2}{\kappa \epsilon^2 (1 + 2s)^2} $$
+- High point $(\theta=\pi/2)$:
+$$\left. \frac{d^2 y}{dx^2} \right|_{\theta=\pi/2} = -\frac{\kappa (1-2s)^2}{\epsilon(1 - \delta^2)} $$
+- Low point $(\theta=3\pi/2)$:
+$$\left. \frac{d^2 y}{dx^2} \right|_{\theta=3\pi/2} = \frac{\kappa (1-2s)^2}{\epsilon(1 - \delta^2)} $$
+
+We use these new curvature values $N_i$ to fit the polynomial coefficients.
