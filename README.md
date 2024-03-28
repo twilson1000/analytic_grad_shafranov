@@ -37,7 +37,7 @@ The exact conditions are explained in the paper. To summarise we form a linear s
 
 Firstly we note we can solve directly for $p(\psi)$ and $F(\psi)$
 
-$$ p(\psi) = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \psi \qquad F(\psi) = R_0^2 \left( B_0^2 - \frac{2 A \Psi_0^2}{R_0^4} \psi \right)^{1/2} $$
+$$ p(\psi) = \frac{\Psi_0^2}{\mu_0 R_0^4} (1 + A) \psi \qquad F(\psi) = R_0 \left( B_0^2 - \frac{2 A \Psi_0^2}{R_0^4} \psi \right)^{1/2} $$
 
 We can also write the toroidal current density $j_\phi$ as
 
