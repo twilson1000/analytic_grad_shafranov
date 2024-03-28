@@ -471,7 +471,7 @@ class AnalyticGradShafranovSolution:
             M[11] = self.psi_homogenous_dy(*self.lower_point_xy)
         else:
             # Lower high point.
-            k, d = self.lower_elongation, self.lower_triangularity
+            k, d, s = self.lower_elongation, self.lower_triangularity, self.lower_squareness
             N3 = k * (1 - 2*s**2) / e / (1 - d**2)
             self.lower_point_xy = (1 - d*e, -k*e)
 
