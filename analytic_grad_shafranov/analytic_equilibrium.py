@@ -70,6 +70,7 @@ class AnalyticGradShafranovSolution:
 
         "upper_point", "lower_point", "upper_point_xy", "lower_point_xy", "equatorial_point_inner_xy",
         "equatorial_point_outer_xy", "boundary_radius", "boundary_height", "q_profile", "poloidal_to_toroidal_flux",
+        "toroidal_to_poloidal_flux", "psi_separatrix_toroidal",
     )
 
     def __init__(
@@ -762,8 +763,12 @@ class AnalyticGradShafranovSolution:
         for i in range(len(toroidal_flux) - 1):
             dpsi_tor = 0.5 * (self.q_profile[i] + self.q_profile[i + 1]) * (poloidal_flux[i + 1] - poloidal_flux[i])
             toroidal_flux[i + 1] = toroidal_flux[i] + dpsi_tor
+        
+        self.psi_separatrix_toroidal = toroidal_flux[-1]
 
+        # Create some interpolators to convert between them.
         self.poloidal_to_toroidal_flux = interp1d(poloidal_flux, toroidal_flux, bounds_error=False, fill_value=(toroidal_flux[0], toroidal_flux[-1]))
+        self.toroidal_to_poloidal_flux = interp1d(toroidal_flux, poloidal_flux, bounds_error=False, fill_value=(poloidal_flux[0], poloidal_flux[-1]))
     def psi_bar_to_psi_norm(self, psi_bar: float) -> float:
         ''' Convert psi_bar parameter used in the normalised Grad Shafranov equation to the standard normalised poloidal flux co-ordinate. '''
         return 1 - (psi_bar * self.psi_0 / self.psi_axis)
@@ -774,6 +779,19 @@ class AnalyticGradShafranovSolution:
         ''' Toroidal flux function. '''
         psi_poloidal = self.psi(R, Z)
         return self.poloidal_to_toroidal_flux(psi_poloidal)
+    def psi_norm_toroidal(self, R, Z):
+        psi_toroidal = self.psi_toroidal(R, Z)
+        return psi_toroidal / self.psi_separatrix_toroidal
+    def psi_norm_poloidal_to_toroidal(self, psi_norm_poloidal):
+        ''' Convert normalised poloidal flux coordinate to normalised toroidal flux coordinate. '''
+        psi_poloidal = self.psi_axis * (1 - psi_norm_poloidal)
+        psi_toroidal = self.poloidal_to_toroidal_flux(psi_poloidal)
+        return psi_toroidal / self.psi_separatrix_toroidal
+    def psi_norm_toroidal_to_poloidal(self, psi_norm_toroidal):
+        ''' Convert normalised toroidal flux coordinate to normalised poloidal flux coordinate. '''
+        psi_toroidal = self.psi_separatrix_toroidal * psi_norm_toroidal
+        psi_poloidal = self.toroidal_to_poloidal_flux(psi_toroidal)
+        return 1 - (psi_poloidal / self.psi_axis)
     def pressure_kPa(self, psi_norm: float):
         ''' Plasma pressure as a function of the normalised poloidal flux [kPa]. '''
         A = self.pressure_parameter
