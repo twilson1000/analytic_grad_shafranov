@@ -899,7 +899,7 @@ class AnalyticGradShafranovSolution:
         _VALUE_FORMAT = "{:16.9e}"
         _INTEGER_FORMAT_1 = "{:4n}"
         _INTEGER_FORMAT_2 = "{:5n}"
-        _COMMENT_FORMAT = "{:>52}"
+        _COMMENT_FORMAT = "{:>48}"
 
         def format_lines(data: npt.NDArray[float]) -> List[str]:
             str_values = [_VALUE_FORMAT.format(x) for x in data]
@@ -910,8 +910,12 @@ class AnalyticGradShafranovSolution:
         # List of lines to write to text file.
         file_lines = []
 
-        # First line containing comment and array sizes.
-        comment = _COMMENT_FORMAT.format("Analytic Grad Shafranov Solution")
+        # First line containing comment and array sizes. This is to make consistent with GENRAY and CQL3D.
+        # Want to write the dimensions of the 2D psi array nz, nz and the dimensions of the flux functions (q, p, f, etc.) nv
+        # GENRAY reads 52 characters then 3 4 character integers nw, nh, nflux.
+        # CQL3D reads 48 characters then 4 4 character integers _, nw, nh, nflux.
+        # Need to pad comment with 4 characters that can be interpretted as an integer -_- to make it work.
+        comment = _COMMENT_FORMAT.format("Analytic Grad Shafranov Solution") + _INTEGER_FORMAT_1.format(0)
         sizes = sizes = "".join([_INTEGER_FORMAT_1.format(data_0d[variable_name]) for variable_name in ('nw', 'nh', 'nflux')])
         file_lines.append(comment + sizes)
 
