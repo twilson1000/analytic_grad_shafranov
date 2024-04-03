@@ -727,8 +727,8 @@ class AnalyticGradShafranovSolution:
             if len(contour) == 0:
                 raise ValueError(f"Unable to find contour for psi norm = {psi_norm}")
 
-            x = xmesh[0] + dxmesh * (contour[0][:, 0] / psi_bar_norm_grid.shape[0])
-            y = ymesh[0] + dymesh * (contour[0][:, 1] / psi_bar_norm_grid.shape[1])
+            x = xmesh[0] + dxmesh * (contour[0][:, 0] / (psi_bar_norm_grid.shape[0] - 1))
+            y = ymesh[0] + dymesh * (contour[0][:, 1] / (psi_bar_norm_grid.shape[1] - 1))
 
             # F function is a flux function so we can move it out the integral (F / R is toroidal field).
             # As we are COCOS 11 q > 0 so take absolute value of F.
@@ -904,12 +904,12 @@ class AnalyticGradShafranovSolution:
         qpsi = np.interp(psi_norm, np.linspace(0, 1, len(self.q_profile) + 1)[1:], self.q_profile)
 
         data_1d = {
-            'fpol': self.f_function(psi_norm),
-            'pres': 1.0e3 * self.pressure_kPa(psi_norm),
+            'fpol': self.f_function(psi_norm), # Toroidal function [T.m]
+            'pres': 1.0e3 * self.pressure_kPa(psi_norm), # Pressure function [Pa].
             'ffprime': ffprime_const * np.ones_like(psi_norm),
             'pprime': pprime_const * np.ones_like(psi_norm),
-            'psirz': self.psi(*np.meshgrid(r, z, indexing='ij')),
-            'qpsi': qpsi,
+            'psirz': self.psi(*np.meshgrid(r, z, indexing='ij')), # Poloidal flux function [Wb / 2pi].
+            'qpsi': qpsi, # Safety factor [].
         }
 
         # Format strings for data.
