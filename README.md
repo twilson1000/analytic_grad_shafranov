@@ -84,7 +84,7 @@ $$ \psi_{\text{pol}}(r, z) = - \frac{1}{2\pi} \int B \cdot dS_p $$
 $$ q(\psi) = \frac{1}{2\pi} \oint \frac{|F(\psi)|}{R|\nabla \psi|} dl_p $$
 
 - The integral above is taken over poloidal distance $l_p$.
-- The $q$ profile is positive when $B_0, I_p > 0$.
+- The $q$ profile is positive.
 - The magnetic axis is the point of **minimum** $\psi$. The separatrix is defined by $\psi = 0$.
 - The toroidal flux function $\psi_{\text{tor}}$ is the toroidal flux per $2\pi$ defined as
 
